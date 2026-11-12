@@ -13,7 +13,7 @@ Page statique qui présente les applications hébergées sur le serveur personne
 
 Dans `index.html`, copier un bloc `<li>…</li>` de la liste `applis`, changer le lien, le titre,
 le texte et l'image (1200 × 480 px, à déposer dans `accueil/`), puis choisir sa couleur avec une
-classe sur le modèle de `.lambretta` et `.bultaco`.
+classe sur le modèle de `.lambretta`, `.bultaco` et `.aeromag`.
 
 ## Mettre en ligne
 

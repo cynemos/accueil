@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>cyneprod.org — Mes applications</title>
-  <meta name="description" content="Les applications hébergées sur mon serveur : les carnets de restauration du Lambretta LD125 de 1956 et de la Bultaco Sherpa 350 T de 1976.">
+  <meta name="description" content="Les applications hébergées sur mon serveur : les carnets de restauration du Lambretta LD125 de 1956 et de la Bultaco Sherpa 350 T de 1976, et ma bibliothèque de revues d'aéromodélisme.">
   <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
   <link rel="icon" type="image/svg+xml" href="accueil/favicon.svg">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
   <meta property="og:title" content="cyneprod.org — Mes applications">
-  <meta property="og:description" content="Carnets de restauration du Lambretta LD125 de 1956 et de la Bultaco Sherpa 350 T de 1976.">
+  <meta property="og:description" content="Carnets de restauration du Lambretta LD125 et de la Bultaco Sherpa 350 T, bibliothèque de revues d'aéromodélisme.">
   <meta property="og:url" content="https://cyneprod.org/">
   <meta property="og:image" content="https://cyneprod.org/accueil/lambretta.jpg">
   <style>
@@ -24,6 +24,7 @@
       --ombre: 0 1px 2px rgba(60, 45, 20, .06), 0 12px 32px -12px rgba(60, 45, 20, .22);
       --lambretta: #9b1c31;
       --bultaco: #c2410c;
+      --aeromag: #1d4ed8;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -35,6 +36,7 @@
         --ombre: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -14px rgba(0, 0, 0, .7);
         --lambretta: #f0899a;
         --bultaco: #fb923c;
+        --aeromag: #93c5fd;
       }
     }
     * { box-sizing: border-box; }
@@ -72,7 +74,7 @@
     }
     .applis {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
       gap: clamp(18px, 3vw, 32px);
       margin: 0;
       padding: 0;
@@ -124,6 +126,7 @@
     .appli:hover .ouvrir span { transform: translateX(4px); }
     .lambretta { --accent: var(--lambretta); }
     .bultaco { --accent: var(--bultaco); }
+    .aeromag { --accent: var(--aeromag); }
     footer {
       margin-top: auto;
       padding: clamp(36px, 7vw, 72px) 0 28px;
@@ -141,7 +144,7 @@
     <header>
       <p class="domaine">cyneprod.org</p>
       <h1>Mes applications</h1>
-      <p class="chapeau">Deux carnets de restauration pour commencer : chaque machine a son site, avec ses photos, ses étapes et ses comptes.</p>
+      <p class="chapeau">Deux carnets de restauration et une bibliothèque de revues : chaque application a son site, ses données et ses comptes.</p>
     </header>
 
     <main>
@@ -165,6 +168,17 @@
               <h2><a href="https://bultaco.cyneprod.org/">Bultaco Sherpa 350 T</a></h2>
               <p class="texte">La renaissance d'une légende du trial espagnol : galerie, chronologie des étapes, fiche technique et coûts.</p>
               <p class="ouvrir" aria-hidden="true">Ouvrir le carnet <span>→</span></p>
+            </div>
+          </article>
+        </li>
+        <li>
+          <article class="appli aeromag">
+            <img src="accueil/aeromag.svg" alt="Trois revues d'aéromodélisme posées en éventail" width="1200" height="480">
+            <div class="corps">
+              <p class="annee">Bibliothèque · revues</p>
+              <h2><a href="https://aeromag.cyneprod.org/">AéroMag</a></h2>
+              <p class="texte">Ma collection de revues d'aéromodélisme : couvertures, mots-clés et plans encartés, pour retrouver un numéro ou un modèle.</p>
+              <p class="ouvrir" aria-hidden="true">Ouvrir la bibliothèque <span>→</span></p>
             </div>
           </article>
         </li>

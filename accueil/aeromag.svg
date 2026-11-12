@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Trois revues d'aéromodélisme posées en éventail">
+  <!-- Illustration originale : pas de couverture de revue existante -->
+  <defs>
+    <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfdbfe"/>
+      <stop offset="1" stop-color="#eff6ff"/>
+    </linearGradient>
+    <linearGradient id="bleu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="vert" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#134e4a"/>
+    </linearGradient>
+    <filter id="ombre" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1e3a8a" flood-opacity=".28"/>
+    </filter>
+    <!-- Avion vu de dessus, nez vers le haut -->
+    <symbol id="avion" viewBox="-60 -60 120 120">
+      <path d="M0-54c5 0 8 9 8 22v10l46 20v9l-46-9v24l14 10v7l-22-5-22 5v-7l14-10V-2l-46 9v-9l46-20v-10c0-13 3-22 8-22z"/>
+    </symbol>
+    <!-- Planeur vu de dessus : ailes longues et fines -->
+    <symbol id="planeur" viewBox="-70 -50 140 100">
+      <path d="M0-44c3 0 5 6 5 14v10l62 8v6l-62 2v26l14 6v5l-19-3-19 3v-5l14-6V-4l-62-2v-6l62-8v-10c0-8 2-14 5-14z"/>
+    </symbol>
+  </defs>
+
+  <rect width="1200" height="480" fill="url(#ciel)"/>
+  <g fill="#fff" opacity=".75">
+    <ellipse cx="170" cy="120" rx="120" ry="30"/>
+    <ellipse cx="240" cy="96" rx="80" ry="28"/>
+    <ellipse cx="1010" cy="330" rx="140" ry="32"/>
+    <ellipse cx="940" cy="306" rx="84" ry="28"/>
+    <ellipse cx="1060" cy="90" rx="70" ry="18"/>
+  </g>
+
+  <!-- Revue de gauche -->
+  <g transform="translate(395 250) rotate(-11)" filter="url(#ombre)">
+    <rect x="-125" y="-170" width="250" height="340" rx="8" fill="url(#vert)"/>
+    <rect x="-125" y="-170" width="250" height="62" rx="8" fill="#fff" opacity=".12"/>
+    <text x="-105" y="-128" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#fff">PLANEURS</text>
+    <use href="#planeur" x="-95" y="-70" width="190" height="136" fill="#ccfbf1"/>
+    <rect x="-105" y="96" width="150" height="10" rx="5" fill="#fff" opacity=".7"/>
+    <rect x="-105" y="118" width="110" height="10" rx="5" fill="#fff" opacity=".45"/>
+    <text x="105" y="150" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#99f6e4">N° 87</text>
+  </g>
+
+  <!-- Revue de droite -->
+  <g transform="translate(805 250) rotate(10)" filter="url(#ombre)">
+    <rect x="-125" y="-170" width="250" height="340" rx="8" fill="url(#orange)"/>
+    <rect x="-125" y="-170" width="250" height="62" rx="8" fill="#fff" opacity=".16"/>
+    <text x="-105" y="-128" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#fff">VOL RADIO</text>
+    <use href="#avion" x="-80" y="-78" width="160" height="160" fill="#fffbeb" transform="rotate(24)"/>
+    <rect x="-105" y="96" width="130" height="10" rx="5" fill="#fff" opacity=".75"/>
+    <rect x="-105" y="118" width="160" height="10" rx="5" fill="#fff" opacity=".5"/>
+    <text x="105" y="150" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#fef3c7">N° 214</text>
+  </g>
+
+  <!-- Revue du milieu, au premier plan -->
+  <g transform="translate(600 244) rotate(-2)" filter="url(#ombre)">
+    <rect x="-135" y="-184" width="270" height="368" rx="8" fill="url(#bleu)"/>
+    <rect x="-135" y="-184" width="270" height="70" rx="8" fill="#fff" opacity=".12"/>
+    <text x="0" y="-136" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#fff">AéroMag</text>
+    <use href="#avion" x="-92" y="-96" width="184" height="184" fill="#dbeafe" transform="rotate(-18)"/>
+    <rect x="-112" y="104" width="224" height="34" rx="6" fill="#fbbf24"/>
+    <text x="0" y="128" text-anchor="middle" font-family="system-ui, 'Segoe UI', sans-serif" font-size="19" font-weight="700" fill="#1e3a8a">PLAN ENCARTÉ</text>
+    <text x="112" y="166" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#bfdbfe">N° 523</text>
+  </g>
+</svg>
