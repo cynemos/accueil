@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cyneprod.org — Mes applications</title>
+  <meta name="description" content="Les applications hébergées sur mon serveur : les carnets de restauration du Lambretta LD125 de 1956 et de la Bultaco Sherpa 350 T de 1976.">
+  <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/svg+xml" href="accueil/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="cyneprod.org — Mes applications">
+  <meta property="og:description" content="Carnets de restauration du Lambretta LD125 de 1956 et de la Bultaco Sherpa 350 T de 1976.">
+  <meta property="og:url" content="https://cyneprod.org/">
+  <meta property="og:image" content="https://cyneprod.org/accueil/lambretta.jpg">
+  <style>
+    :root {
+      --fond: #f6f1e7;
+      --carte: #fffdf8;
+      --texte: #221d16;
+      --discret: #6b6255;
+      --trait: #e2d9c8;
+      --ombre: 0 1px 2px rgba(60, 45, 20, .06), 0 12px 32px -12px rgba(60, 45, 20, .22);
+      --lambretta: #9b1c31;
+      --bultaco: #c2410c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fond: #16130f;
+        --carte: #1f1b16;
+        --texte: #f1ebdf;
+        --discret: #a59b8a;
+        --trait: #342e25;
+        --ombre: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -14px rgba(0, 0, 0, .7);
+        --lambretta: #f0899a;
+        --bultaco: #fb923c;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--fond);
+      color: var(--texte);
+      font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .page { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    header { padding: clamp(40px, 9vw, 96px) 0 clamp(28px, 5vw, 48px); }
+    .domaine {
+      margin: 0 0 14px;
+      font-size: .82rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--discret);
+    }
+    h1 {
+      margin: 0;
+      font: 600 clamp(2.1rem, 6vw, 3.6rem)/1.08 Georgia, "Times New Roman", serif;
+      letter-spacing: -.01em;
+      text-wrap: balance;
+    }
+    .chapeau {
+      max-width: 58ch;
+      margin: 18px 0 0;
+      font-size: 1.1rem;
+      color: var(--discret);
+      text-wrap: pretty;
+    }
+    .applis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+      gap: clamp(18px, 3vw, 32px);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .appli {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid var(--trait);
+      border-radius: 18px;
+      background: var(--carte);
+      box-shadow: var(--ombre);
+      transition: transform .2s ease, border-color .2s ease;
+    }
+    .appli:hover, .appli:focus-within { transform: translateY(-3px); border-color: var(--accent); }
+    .appli img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 5 / 2;
+      object-fit: cover;
+      background: var(--trait);
+    }
+    .corps { display: flex; flex-direction: column; flex: 1; padding: 22px 24px 24px; }
+    .annee {
+      margin: 0 0 6px;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    h2 { margin: 0; font: 600 1.6rem/1.2 Georgia, "Times New Roman", serif; }
+    h2 a { color: inherit; text-decoration: none; }
+    /* Toute la carte est cliquable, le lien reste un vrai lien pour le clavier */
+    h2 a::after { content: ""; position: absolute; inset: 0; }
+    h2 a:focus-visible { outline: none; }
+    .appli:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .corps p.texte { margin: 10px 0 20px; color: var(--discret); text-wrap: pretty; }
+    .ouvrir {
+      margin: auto 0 0;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .ouvrir span { display: inline-block; transition: transform .2s ease; }
+    .appli:hover .ouvrir span { transform: translateX(4px); }
+    .lambretta { --accent: var(--lambretta); }
+    .bultaco { --accent: var(--bultaco); }
+    footer {
+      margin-top: auto;
+      padding: clamp(36px, 7vw, 72px) 0 28px;
+      font-size: .9rem;
+      color: var(--discret);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .appli, .ouvrir span { transition: none; }
+      .appli:hover, .appli:focus-within { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <p class="domaine">cyneprod.org</p>
+      <h1>Mes applications</h1>
+      <p class="chapeau">Deux carnets de restauration pour commencer : chaque machine a son site, avec ses photos, ses étapes et ses comptes.</p>
+    </header>
+
+    <main>
+      <ul class="applis">
+        <li>
+          <article class="appli lambretta">
+            <img src="accueil/lambretta.jpg" alt="Le Lambretta LD125 restauré, rouge et crème, garé au soleil" width="1200" height="480">
+            <div class="corps">
+              <p class="annee">Scooter · 1956</p>
+              <h2><a href="https://lambretta.cyneprod.org/">Lambretta LD125</a></h2>
+              <p class="texte">Le carnet de bord de la restauration, étape par étape : photos et vidéos, pièces, temps passé et avant / après.</p>
+              <p class="ouvrir" aria-hidden="true">Ouvrir le carnet <span>→</span></p>
+            </div>
+          </article>
+        </li>
+        <li>
+          <article class="appli bultaco">
+            <img src="accueil/bultaco.jpg" alt="La Bultaco Sherpa 350 T restaurée, rouge, sur un chemin de gravier" width="1200" height="480">
+            <div class="corps">
+              <p class="annee">Moto de trial · 1976</p>
+              <h2><a href="https://bultaco.cyneprod.org/">Bultaco Sherpa 350 T</a></h2>
+              <p class="texte">La renaissance d'une légende du trial espagnol : galerie, chronologie des étapes, fiche technique et coûts.</p>
+              <p class="ouvrir" aria-hidden="true">Ouvrir le carnet <span>→</span></p>
+            </div>
+          </article>
+        </li>
+      </ul>
+    </main>
+
+    <footer>
+      <p>Hébergé à la maison, sur mon propre serveur.</p>
+    </footer>
+  </div>
+</body>
+</html>

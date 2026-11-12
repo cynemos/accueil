@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Deux roues : scooter et moto -->
+  <rect width="32" height="32" rx="7" fill="#9b1c31"/>
+  <g fill="none" stroke="#f6f1e7" stroke-width="2.4">
+    <circle cx="10" cy="19" r="5"/>
+    <circle cx="22" cy="19" r="5"/>
+  </g>
+  <path d="M10 19l5-9h5l2 9" fill="none" stroke="#f6f1e7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
