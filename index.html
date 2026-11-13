@@ -25,6 +25,7 @@
       --lambretta: #9b1c31;
       --bultaco: #c2410c;
       --aeromag: #1d4ed8;
+      --carnet: #15803d;
       --serie-cpu: #2a78d6;
       --serie-mem: #eb6834;
       --jauge: #8a7f6c;
@@ -43,6 +44,7 @@
         --lambretta: #f0899a;
         --bultaco: #fb923c;
         --aeromag: #93c5fd;
+        --carnet: #86efac;
         --serie-cpu: #3987e5;
         --serie-mem: #d95926;
         --jauge: #8d8372;
@@ -83,7 +85,7 @@
     }
     .applis {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));  /* 2 colonnes au plus : 4 cartes en 2 × 2 */
       gap: clamp(18px, 3vw, 32px);
       margin: 0;
       padding: 0;
@@ -136,6 +138,7 @@
     .lambretta { --accent: var(--lambretta); }
     .bultaco { --accent: var(--bultaco); }
     .aeromag { --accent: var(--aeromag); }
+    .carnet { --accent: var(--carnet); }
     /* ---- État du serveur ---- */
     .etat {
       margin-top: clamp(48px, 8vw, 88px);
@@ -254,7 +257,7 @@
     <header>
       <p class="domaine">cyneprod.org</p>
       <h1>Mes applications</h1>
-      <p class="chapeau">Deux carnets de restauration et une bibliothèque de revues : chaque application a son site, ses données et ses comptes.</p>
+      <p class="chapeau">Deux carnets de restauration, une bibliothèque de revues et le suivi d'entretien de mes véhicules : chaque application a son site, ses données et ses comptes.</p>
     </header>
 
     <main>
@@ -289,6 +292,17 @@
               <h2><a href="https://aeromag.cyneprod.org/">AéroMag</a></h2>
               <p class="texte">Ma collection de revues d'aéromodélisme : couvertures, mots-clés et plans encartés, pour retrouver un numéro ou un modèle.</p>
               <p class="ouvrir" aria-hidden="true">Ouvrir la bibliothèque <span>→</span></p>
+            </div>
+          </article>
+        </li>
+        <li>
+          <article class="appli carnet">
+            <img src="accueil/carnet.svg" alt="Un carnet d'entretien ouvert, une clé plate posée dessus" width="1200" height="480">
+            <div class="corps">
+              <p class="annee">Garage · accès privé</p>
+              <h2><a href="https://carnet.cyneprod.org/">Carnets d'entretien</a></h2>
+              <p class="texte">L'historique de chaque véhicule : entretiens et factures, contrôles techniques, anciens propriétaires, alertes et statistiques de coûts.</p>
+              <p class="ouvrir" aria-hidden="true">Ouvrir les carnets <span>→</span></p>
             </div>
           </article>
         </li>
@@ -335,7 +349,7 @@
     <footer>
       <p class="signature"><strong>cyneprod.org</strong> · Infrastructure auto-hébergée</p>
       <p>Applications, bases de données et sauvegardes sont hébergées et administrées sur un serveur dédié, sans recours à un service tiers.</p>
-      <p class="mentions">© 2026 · v1.2.1</p>
+      <p class="mentions">© 2026 · v1.3.0</p>
     </footer>
   </div>
 

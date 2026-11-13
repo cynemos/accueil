@@ -29,16 +29,23 @@ APPLICATIONS = [
     ("Lambretta", "https://lambretta.cyneprod.org/", "https://api.cyneprod.org/auth/v1/health"),
     ("Bultaco", "https://bultaco.cyneprod.org/", "https://api-bultaco.cyneprod.org/auth/v1/health"),
     ("AéroMag", "https://aeromag.cyneprod.org/", "https://api-aeromag.cyneprod.org/auth/v1/health"),
+    ("Carnets d'entretien", "https://carnet.cyneprod.org/", "https://api-carnet.cyneprod.org/auth/v1/health"),
 ]
 # nom affiché, fichier d'état écrit par le script de sauvegarde
 SAUVEGARDES = [
     ("Lambretta", "~/sauvegardes/auto/ETAT"),
     ("Bultaco", "~/sauvegardes/auto-bultaco/ETAT"),
     ("AéroMag", "~/sauvegardes/auto-aeromag/ETAT"),
+    ("Carnets d'entretien", "~/sauvegardes/auto-carnet/ETAT"),
 ]
-# Chaque application a besoin de ces conteneurs Supabase (suffixe = nom du projet)
-PROJETS = ["supabase", "bultaco", "aeromag"]
+# Conteneurs Supabase dont chaque application a besoin (suffixe = nom du projet)
 SERVICES_REQUIS = ["db", "kong", "rest", "auth", "storage"]
+PROJETS = {
+    "supabase": SERVICES_REQUIS,
+    "bultaco": SERVICES_REQUIS,
+    "aeromag": SERVICES_REQUIS,
+    "carnet": ["db", "kong", "rest", "auth"],  # pas de stockage de fichiers
+}
 
 
 def lire(chemin):
@@ -121,10 +128,10 @@ def conteneurs():
     try:
         sortie = subprocess.run(["docker", "ps", "--format", "{{.Names}}|{{.Status}}"], capture_output=True, text=True, timeout=15).stdout
     except (subprocess.SubprocessError, OSError):
-        return {"actifs": 0, "en_defaut": 0, "manquants": len(PROJETS) * len(SERVICES_REQUIS), "ok": False}
+        return {"actifs": 0, "en_defaut": 0, "manquants": sum(len(s) for s in PROJETS.values()), "ok": False}
     etats = dict(ligne.split("|", 1) for ligne in sortie.splitlines() if "|" in ligne)
     en_defaut = sum(1 for etat in etats.values() if "unhealthy" in etat or "Restarting" in etat)
-    manquants = sum(1 for p in PROJETS for s in SERVICES_REQUIS if f"supabase_{s}_{p}" not in etats)
+    manquants = sum(1 for p, services in PROJETS.items() for s in services if f"supabase_{s}_{p}" not in etats)
     return {"actifs": len(etats), "en_defaut": en_defaut, "manquants": manquants, "ok": en_defaut == 0 and manquants == 0}
 
 

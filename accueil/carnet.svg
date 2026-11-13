@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Un carnet d'entretien ouvert, une clé plate posée dessus">
+  <!-- Illustration originale -->
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bbf7d0"/>
+      <stop offset="1" stop-color="#f0fdf4"/>
+    </linearGradient>
+    <linearGradient id="couv" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15803d"/>
+      <stop offset="1" stop-color="#14532d"/>
+    </linearGradient>
+    <linearGradient id="acier" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e5e7eb"/>
+      <stop offset=".5" stop-color="#9ca3af"/>
+      <stop offset="1" stop-color="#6b7280"/>
+    </linearGradient>
+    <filter id="ombre" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#14532d" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="480" fill="url(#fond)"/>
+  <!-- Damier discret, clin d'œil aux courses -->
+  <g fill="#15803d" opacity=".07">
+    <rect x="0" y="0" width="40" height="40"/><rect x="80" y="0" width="40" height="40"/><rect x="40" y="40" width="40" height="40"/>
+    <rect x="1080" y="400" width="40" height="40"/><rect x="1160" y="400" width="40" height="40"/><rect x="1120" y="440" width="40" height="40"/>
+  </g>
+
+  <!-- Carnet ouvert -->
+  <g filter="url(#ombre)" transform="rotate(-4 600 250)">
+    <rect x="300" y="70" width="600" height="360" rx="14" fill="url(#couv)"/>
+    <path d="M318 84h276v332H318z" fill="#fffdf6"/>
+    <path d="M606 84h276v332H606z" fill="#fffaf0"/>
+    <rect x="594" y="78" width="12" height="344" fill="#0f3d22" opacity=".35"/>
+    <!-- Page de gauche : en-tête et lignes d'entretien -->
+    <text x="340" y="130" font-family="Georgia, serif" font-size="26" font-weight="700" fill="#14532d">Entretien</text>
+    <g stroke="#d6cfbf" stroke-width="2">
+      <path d="M340 160h232M340 200h232M340 240h232M340 280h232M340 320h232M340 360h232"/>
+    </g>
+    <g fill="#166534" opacity=".8">
+      <rect x="340" y="170" width="70" height="10" rx="5"/><rect x="430" y="170" width="110" height="10" rx="5"/>
+      <rect x="340" y="210" width="70" height="10" rx="5"/><rect x="430" y="210" width="90" height="10" rx="5"/>
+      <rect x="340" y="250" width="70" height="10" rx="5"/><rect x="430" y="250" width="124" height="10" rx="5"/>
+      <rect x="340" y="290" width="70" height="10" rx="5"/><rect x="430" y="290" width="76" height="10" rx="5"/>
+    </g>
+    <!-- Page de droite : contrôle technique coché et courbe des kilomètres -->
+    <text x="628" y="130" font-family="Georgia, serif" font-size="26" font-weight="700" fill="#14532d">Contrôle</text>
+    <g fill="none" stroke="#16a34a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M632 168l12 12 22-26"/>
+      <path d="M632 208l12 12 22-26"/>
+    </g>
+    <g fill="#166534" opacity=".8">
+      <rect x="684" y="164" width="150" height="10" rx="5"/>
+      <rect x="684" y="204" width="120" height="10" rx="5"/>
+    </g>
+    <path d="M632 380V260M632 380h228" stroke="#a8a29e" stroke-width="3"/>
+    <path d="M632 370l46-20 46-34 46-12 46-30 44-22" fill="none" stroke="#ea580c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Clé plate posée en travers -->
+  <g filter="url(#ombre)" transform="translate(830 330) rotate(-32)">
+    <rect x="-150" y="-13" width="300" height="26" rx="13" fill="url(#acier)"/>
+    <path d="M150 0m-40 0a40 40 0 1 0 80 0a40 40 0 1 0-80 0z" fill="url(#acier)"/>
+    <path d="M170 -14l34 0 0 28-34 0z" fill="url(#fond)"/>
+    <path d="M-150 0m-36 0a36 36 0 1 0 72 0a36 36 0 1 0-72 0z" fill="url(#acier)"/>
+    <path d="M-150 0m-16 0a16 16 0 1 0 32 0a16 16 0 1 0-32 0z" fill="#9ca3af"/>
+  </g>
+</svg>
