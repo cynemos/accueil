@@ -172,15 +172,14 @@
 
     .mesures {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
-      gap: 1px;
+      grid-template-columns: repeat(2, 1fr);
       margin: 22px 0 0;
       border: 1px solid var(--trait);
       border-radius: 12px;
       overflow: hidden;
-      background: var(--trait);
     }
-    .tuile { padding: 14px 16px 16px; background: var(--carte); }
+    /* Bordures internes seulement : celles du bord droit et du bas sont rognées par le cadre */
+    .tuile { margin: 0 -1px -1px 0; padding: 14px 16px 16px; border: solid var(--trait); border-width: 0 1px 1px 0; }
     .tuile p { margin: 0; }
     .tuile .nom { font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; color: var(--discret); }
     .tuile .valeur { margin-top: 4px; font: 600 1.55rem/1.15 Georgia, "Times New Roman", serif; font-variant-numeric: tabular-nums; }
@@ -188,7 +187,7 @@
       .tuile { padding: 12px 12px 14px; }
       .tuile .valeur { font-size: 1.3rem; }
     }
-    @media (min-width: 900px) {
+    @media (min-width: 640px) {
       .mesures { grid-template-columns: repeat(4, 1fr); }
     }
     .tuile .detail { margin-top: 2px; font-size: .84rem; color: var(--discret); font-variant-numeric: tabular-nums; }
@@ -336,7 +335,7 @@
     <footer>
       <p class="signature"><strong>cyneprod.org</strong> · Infrastructure auto-hébergée</p>
       <p>Applications, bases de données et sauvegardes sont hébergées et administrées sur un serveur dédié, sans recours à un service tiers.</p>
-      <p class="mentions">© 2026 · v1.2.0</p>
+      <p class="mentions">© 2026 · v1.2.1</p>
     </footer>
   </div>
 
