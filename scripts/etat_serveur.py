@@ -44,7 +44,7 @@ PROJETS = {
     "supabase": SERVICES_REQUIS,
     "bultaco": SERVICES_REQUIS,
     "aeromag": SERVICES_REQUIS,
-    "carnet": ["db", "kong", "rest", "auth"],  # pas de stockage de fichiers
+    "carnet": SERVICES_REQUIS,  # stockage de fichiers depuis Carnets v1.4.0
 }
 
 
