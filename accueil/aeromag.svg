@@ -1,74 +1,209 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Trois revues d'aéromodélisme posées en éventail">
-  <!-- Illustration originale : pas de couverture de revue existante -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" role="img" aria-label="Les rayonnages en bois sombre d'AéroMag, chargés de revues anciennes d'aéromodélisme, de moto et d'automobile">
+  <!-- Illustration originale reprenant l'interface du site (bois sombre, laiton, revues sur tablettes) -->
   <defs>
-    <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#bfdbfe"/>
-      <stop offset="1" stop-color="#eff6ff"/>
+    <linearGradient id="or" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset=".28" stop-color="#f0d894"/>
+      <stop offset=".55" stop-color="#c9a24b"/><stop offset=".78" stop-color="#9a7526"/><stop offset="1" stop-color="#f0d894"/>
     </linearGradient>
-    <linearGradient id="bleu" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1d4ed8"/>
-      <stop offset="1" stop-color="#1e3a8a"/>
+    <linearGradient id="laiton" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6e3a6"/><stop offset=".5" stop-color="#c9a24b"/><stop offset="1" stop-color="#86651f"/>
     </linearGradient>
-    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f59e0b"/>
-      <stop offset="1" stop-color="#d97706"/>
+    <linearGradient id="tablette" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c48a52"/><stop offset=".25" stop-color="#a06f3f"/><stop offset="1" stop-color="#4a2d16"/>
     </linearGradient>
-    <linearGradient id="vert" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#0f766e"/>
-      <stop offset="1" stop-color="#134e4a"/>
+    <linearGradient id="niche" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0603"/><stop offset="1" stop-color="#2a1a0f"/>
     </linearGradient>
+    <radialGradient id="lampe" cx=".5" cy="-.1" r=".75">
+      <stop offset="0" stop-color="#ffd696" stop-opacity=".22"/><stop offset="1" stop-color="#ffd696" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="vieilli" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3e9d2" stop-opacity=".0"/><stop offset="1" stop-color="#7b4d27" stop-opacity=".28"/>
+    </linearGradient>
+    <pattern id="lames" width="46" height="480" patternUnits="userSpaceOnUse">
+      <rect width="46" height="480" fill="#1c110a"/>
+      <rect x="0" width="1.5" height="480" fill="#000" opacity=".45"/>
+      <path d="M12 0 C 16 120, 8 240, 14 480 M30 0 C 26 160, 34 300, 28 480" stroke="#2a1a0f" stroke-width="3" fill="none" opacity=".7"/>
+    </pattern>
     <filter id="ombre" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1e3a8a" flood-opacity=".28"/>
+      <feDropShadow dx="3" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".6"/>
     </filter>
-    <!-- Avion vu de dessus, nez vers le haut -->
-    <symbol id="avion" viewBox="-60 -60 120 120">
-      <path d="M0-54c5 0 8 9 8 22v10l46 20v9l-46-9v24l14 10v7l-22-5-22 5v-7l14-10V-2l-46 9v-9l46-20v-10c0-13 3-22 8-22z"/>
-    </symbol>
-    <!-- Planeur vu de dessus : ailes longues et fines -->
-    <symbol id="planeur" viewBox="-70 -50 140 100">
-      <path d="M0-44c3 0 5 6 5 14v10l62 8v6l-62 2v26l14 6v5l-19-3-19 3v-5l14-6V-4l-62-2v-6l62-8v-10c0-8 2-14 5-14z"/>
-    </symbol>
+    <clipPath id="couv"><rect width="104" height="139" rx="2"/></clipPath>
   </defs>
 
-  <rect width="1200" height="480" fill="url(#ciel)"/>
-  <g fill="#fff" opacity=".75">
-    <ellipse cx="170" cy="120" rx="120" ry="30"/>
-    <ellipse cx="240" cy="96" rx="80" ry="28"/>
-    <ellipse cx="1010" cy="330" rx="140" ry="32"/>
-    <ellipse cx="940" cy="306" rx="84" ry="28"/>
-    <ellipse cx="1060" cy="90" rx="70" ry="18"/>
+  <rect width="1200" height="480" fill="url(#lames)"/>
+  <rect width="1200" height="480" fill="url(#lampe)"/>
+
+  <!-- Bandeau : plaque de laiton et menu -->
+  <rect width="1200" height="58" fill="#120a05" opacity=".75"/>
+  <rect y="58" width="1200" height="2" fill="#86651f" opacity=".6"/>
+  <g filter="url(#ombre)">
+    <rect x="40" y="13" width="236" height="34" rx="3" fill="url(#laiton)"/>
+    <circle cx="52" cy="30" r="3" fill="#6b5216"/><circle cx="264" cy="30" r="3" fill="#6b5216"/>
+  </g>
+  <text x="64" y="37" font-family="'Playfair Display', Georgia, serif" font-size="19" font-weight="700" fill="#120a05">AéroMag</text>
+  <text x="156" y="36" font-family="'EB Garamond', Georgia, serif" font-size="14" font-style="italic" fill="#3d2615">La bibliothèque</text>
+  <rect x="826" y="15" width="132" height="30" rx="3" fill="none" stroke="#c9a24b" stroke-opacity=".7"/>
+  <text x="892" y="35" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#f0d894">Les rayonnages</text>
+  <text x="1010" y="35" font-family="Georgia, serif" font-size="14" fill="#f3e9d2" opacity=".8">À propos</text>
+  <text x="1094" y="35" font-family="Georgia, serif" font-size="14" fill="#f3e9d2" opacity=".8">Connexion</text>
+
+  <!-- Titre et recherche -->
+  <text x="40" y="112" font-family="'Playfair Display', Georgia, serif" font-size="42" font-weight="700" fill="url(#or)">Les rayonnages</text>
+  <text x="42" y="138" font-family="'EB Garamond', Georgia, serif" font-size="17" font-style="italic" fill="#e3d3ad">Aéromodélisme · Porsche · Enduro · Trial</text>
+  <rect x="820" y="88" width="340" height="40" rx="4" fill="#120a05" stroke="#86651f"/>
+  <circle cx="842" cy="106" r="7" fill="none" stroke="#c9a24b" stroke-width="2"/>
+  <path d="M847 111 l6 6" stroke="#c9a24b" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="864" y="114" font-family="'EB Garamond', Georgia, serif" font-size="16" font-style="italic" fill="#a06f3f">Titre, numéro, modèle, mot-clé…</text>
+
+  <!-- Rayonnage du haut : niche, étiquette de laiton, revues, tablette -->
+  <rect x="40" y="160" width="1120" height="200" fill="url(#niche)" opacity=".85"/>
+  <g filter="url(#ombre)">
+    <rect x="40" y="168" width="168" height="30" rx="3" fill="url(#laiton)"/>
+  </g>
+  <circle cx="51" cy="183" r="2.6" fill="#6b5216"/><circle cx="197" cy="183" r="2.6" fill="#6b5216"/>
+  <text x="124" y="189" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="15" font-weight="700" fill="#120a05">Aéromodélisme</text>
+
+  <!-- Revue 1 : avion de vol circulaire -->
+  <g transform="translate(64 208) rotate(-1.5)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#9cc6dc"/>
+      <rect width="104" height="30" fill="#b3261e"/>
+      <text x="52" y="21" text-anchor="middle" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#fff" textLength="92" lengthAdjust="spacingAndGlyphs">AÉRO·MODÈLES</text>
+      <path d="M8 100 Q52 70 98 96" stroke="#fff" stroke-width="1" stroke-dasharray="3 3" fill="none" opacity=".8"/>
+      <g transform="translate(52 78) rotate(-14)">
+        <ellipse rx="34" ry="5" fill="#f2c230"/><rect x="-6" y="-26" width="12" height="52" rx="3" fill="#d9a514"/>
+        <path d="M-34 0 l-8 -8 l0 16 z" fill="#b3261e"/><circle cx="36" r="3" fill="#333"/>
+      </g>
+      <text x="8" y="130" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#14324a">N° 214</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue 2 : planeur, plan encarté qui dépasse -->
+  <g transform="translate(186 206) rotate(1)" filter="url(#ombre)">
+    <rect x="70" y="-10" width="40" height="60" fill="#e9eef2" stroke="#6b8aa3" stroke-width=".8"/>
+    <path d="M76 2 h28 M76 10 h24 M80 18 l20 22 M76 40 h28" stroke="#3a6d96" stroke-width=".8"/>
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#f4ecd2"/>
+      <rect width="104" height="26" fill="#1f4e79"/>
+      <text x="52" y="19" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#f4ecd2" letter-spacing="1">VOL LIBRE</text>
+      <path d="M10 80 L94 66 M48 73 l4 -2 l18 4 l-18 2 z M86 67 l6 -8 l2 7 z" stroke="#1f4e79" stroke-width="2.4" fill="#1f4e79" stroke-linejoin="round"/>
+      <text x="52" y="112" text-anchor="middle" font-family="Georgia, serif" font-size="10" font-style="italic" fill="#1f4e79">avec plan encarté</text>
+      <text x="8" y="131" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#1f4e79">N° 58</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue 3 : radiocommande -->
+  <g transform="translate(308 208) rotate(-0.5)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#203a2c"/>
+      <rect width="104" height="28" fill="#f0d894"/>
+      <text x="52" y="20" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#203a2c" textLength="92" lengthAdjust="spacingAndGlyphs">RADIO·MODÈLES</text>
+      <rect x="18" y="52" width="68" height="46" rx="5" fill="#4b5563"/>
+      <circle cx="36" cy="75" r="9" fill="#9ca3af"/><circle cx="68" cy="75" r="9" fill="#9ca3af"/>
+      <path d="M36 75 l0 -7 M68 75 l5 -5" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M78 52 l10 -32" stroke="#d1d5db" stroke-width="2"/>
+      <text x="8" y="130" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#f0d894">N° 97</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue 4 : hydravion -->
+  <g transform="translate(430 207) rotate(1.4)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#e8d9b0"/>
+      <rect y="92" width="104" height="47" fill="#5b8fa8"/>
+      <rect width="104" height="27" fill="#2b1d10"/>
+      <text x="52" y="19" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="700" fill="#e8d9b0" textLength="92" lengthAdjust="spacingAndGlyphs">MODÈLE RÉDUIT</text>
+      <g transform="translate(52 72)">
+        <path d="M-36 0 h66 l8 -5 l-4 9 h-70 z" fill="#c2553a"/><rect x="-10" y="-14" width="10" height="28" fill="#8c2318"/>
+        <path d="M-30 6 v10 h20 M14 6 v10 h20" stroke="#2b1d10" stroke-width="2" fill="none"/>
+      </g>
+      <text x="8" y="130" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#fff">N° 402</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revues couchées (pile) -->
+  <g filter="url(#ombre)">
+    <rect x="556" y="318" width="140" height="10" fill="#b3261e"/><rect x="560" y="308" width="134" height="10" fill="#e3d3ad"/>
+    <rect x="552" y="298" width="138" height="10" fill="#1f4e79"/><rect x="558" y="288" width="132" height="10" fill="#f2c230"/>
   </g>
 
-  <!-- Revue de gauche -->
-  <g transform="translate(395 250) rotate(-11)" filter="url(#ombre)">
-    <rect x="-125" y="-170" width="250" height="340" rx="8" fill="url(#vert)"/>
-    <rect x="-125" y="-170" width="250" height="62" rx="8" fill="#fff" opacity=".12"/>
-    <text x="-105" y="-128" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#fff">PLANEURS</text>
-    <use href="#planeur" x="-95" y="-70" width="190" height="136" fill="#ccfbf1"/>
-    <rect x="-105" y="96" width="150" height="10" rx="5" fill="#fff" opacity=".7"/>
-    <rect x="-105" y="118" width="110" height="10" rx="5" fill="#fff" opacity=".45"/>
-    <text x="105" y="150" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#99f6e4">N° 87</text>
+  <!-- Deuxième étagère sur la même tablette : moto et automobile -->
+  <g filter="url(#ombre)">
+    <rect x="736" y="168" width="150" height="30" rx="3" fill="url(#laiton)"/>
+  </g>
+  <circle cx="747" cy="183" r="2.6" fill="#6b5216"/><circle cx="875" cy="183" r="2.6" fill="#6b5216"/>
+  <text x="811" y="189" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="15" font-weight="700" fill="#120a05">Moto · Auto</text>
+
+  <!-- Revue 5 : trial -->
+  <g transform="translate(736 208) rotate(-1)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#f3e9d2"/>
+      <rect width="104" height="30" fill="#c2161b"/>
+      <text x="52" y="22" text-anchor="middle" font-family="Georgia, serif" font-size="18" font-weight="700" fill="#fff" letter-spacing="2">TRIAL</text>
+      <path d="M0 112 L30 96 L52 104 L80 88 L104 96 V139 H0 z" fill="#8a7a5c"/>
+      <g transform="translate(50 82) rotate(-18)" stroke="#2b1d10" stroke-width="2.6" fill="none">
+        <circle cx="-20" cy="12" r="11"/><circle cx="20" cy="12" r="11"/>
+        <path d="M-20 12 L-4 -2 L12 -2 L20 12 M12 -2 L8 -14 M-4 -2 L-6 6"/>
+      </g>
+      <text x="8" y="132" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#fff">N° 287</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue 6 : enduro -->
+  <g transform="translate(858 206) rotate(1.2)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#e98b2a"/>
+      <rect width="104" height="30" fill="#1c110a"/>
+      <text x="52" y="21" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#e98b2a" letter-spacing="2">ENDURO</text>
+      <path d="M0 104 Q50 86 104 108 V139 H0 z" fill="#7b4d27"/>
+      <g transform="translate(52 82)" stroke="#1c110a" stroke-width="2.6" fill="none">
+        <circle cx="-22" cy="10" r="12"/><circle cx="22" cy="10" r="12"/>
+        <path d="M-22 10 L-6 -6 L14 -6 L22 10 M14 -6 L10 -18 L18 -20 M-6 -6 L-16 -10"/>
+      </g>
+      <text x="8" y="131" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#fff">N° 33</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue 7 : sportive à moteur arrière -->
+  <g transform="translate(980 208) rotate(-1.2)" filter="url(#ombre)">
+    <g clip-path="url(#couv)">
+      <rect width="104" height="139" fill="#1d3a2c"/>
+      <rect width="104" height="30" fill="#f3e9d2"/>
+      <text x="52" y="21" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="700" fill="#1d3a2c" letter-spacing="1">FLAT SIX</text>
+      <g transform="translate(52 86)">
+        <path d="M-42 6 C-40 -6 -26 -10 -14 -18 C-4 -24 14 -24 26 -14 C34 -8 42 -4 44 6 Z" fill="#c9a24b"/>
+        <path d="M-10 -16 C-2 -21 12 -21 20 -13 L-14 -12 Z" fill="#1d3a2c" opacity=".7"/>
+        <circle cx="-26" cy="7" r="8" fill="#111"/><circle cx="28" cy="7" r="8" fill="#111"/>
+      </g>
+      <text x="8" y="131" font-family="Georgia, serif" font-size="11" font-weight="700" fill="#f0d894">N° 12</text>
+      <rect width="104" height="139" fill="url(#vieilli)"/>
+    </g>
+  </g>
+  <!-- Revue penchée en bout de rayon -->
+  <g transform="translate(1104 214) rotate(9)" filter="url(#ombre)">
+    <rect width="40" height="134" fill="#8c2318"/>
+    <text transform="translate(26 120) rotate(-90)" font-family="Georgia, serif" font-size="12" font-weight="700" fill="#f3e9d2" letter-spacing="1">AUTO RÉTRO</text>
   </g>
 
-  <!-- Revue de droite -->
-  <g transform="translate(805 250) rotate(10)" filter="url(#ombre)">
-    <rect x="-125" y="-170" width="250" height="340" rx="8" fill="url(#orange)"/>
-    <rect x="-125" y="-170" width="250" height="62" rx="8" fill="#fff" opacity=".16"/>
-    <text x="-105" y="-128" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" fill="#fff">VOL RADIO</text>
-    <use href="#avion" x="-80" y="-78" width="160" height="160" fill="#fffbeb" transform="rotate(24)"/>
-    <rect x="-105" y="96" width="130" height="10" rx="5" fill="#fff" opacity=".75"/>
-    <rect x="-105" y="118" width="160" height="10" rx="5" fill="#fff" opacity=".5"/>
-    <text x="105" y="150" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#fef3c7">N° 214</text>
+  <!-- Tablette -->
+  <rect x="28" y="346" width="1144" height="18" rx="2" fill="url(#tablette)"/>
+  <rect x="28" y="346" width="1144" height="2" fill="#e0b27c" opacity=".7"/>
+  <rect x="28" y="364" width="1144" height="10" fill="#000" opacity=".35"/>
+
+  <!-- Numéros sous les revues -->
+  <g font-family="'EB Garamond', Georgia, serif" font-size="13" fill="#f0d894">
+    <text x="66" y="394">N° 214 · 1962</text><text x="188" y="394">N° 58 · 1958</text><text x="310" y="394">N° 97 · 1971</text>
+    <text x="432" y="394">N° 402 · 1974</text><text x="738" y="394">N° 287 · 1976</text><text x="860" y="394">N° 33 · 1981</text>
+    <text x="982" y="394">N° 12 · 1989</text>
   </g>
 
-  <!-- Revue du milieu, au premier plan -->
-  <g transform="translate(600 244) rotate(-2)" filter="url(#ombre)">
-    <rect x="-135" y="-184" width="270" height="368" rx="8" fill="url(#bleu)"/>
-    <rect x="-135" y="-184" width="270" height="70" rx="8" fill="#fff" opacity=".12"/>
-    <text x="0" y="-136" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" font-weight="700" fill="#fff">AéroMag</text>
-    <use href="#avion" x="-92" y="-96" width="184" height="184" fill="#dbeafe" transform="rotate(-18)"/>
-    <rect x="-112" y="104" width="224" height="34" rx="6" fill="#fbbf24"/>
-    <text x="0" y="128" text-anchor="middle" font-family="system-ui, 'Segoe UI', sans-serif" font-size="19" font-weight="700" fill="#1e3a8a">PLAN ENCARTÉ</text>
-    <text x="112" y="166" text-anchor="end" font-family="Georgia, serif" font-size="20" fill="#bfdbfe">N° 523</text>
+  <!-- Rayonnage suivant, coupé par le bas -->
+  <rect x="40" y="420" width="1120" height="60" fill="url(#niche)" opacity=".85"/>
+  <g filter="url(#ombre)">
+    <rect x="40" y="428" width="120" height="30" rx="3" fill="url(#laiton)"/>
+    <rect x="70" y="466" width="104" height="20" fill="#f2c230"/><rect x="192" y="466" width="104" height="20" fill="#3a6d96"/>
+    <rect x="314" y="466" width="104" height="20" fill="#e3d3ad"/><rect x="436" y="466" width="104" height="20" fill="#b3261e"/>
   </g>
+  <text x="100" y="449" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="15" font-weight="700" fill="#120a05">Plans</text>
 </svg>
