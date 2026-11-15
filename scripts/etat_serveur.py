@@ -3,13 +3,15 @@
 
 Lancé chaque minute par cron, il écrit accueil/etat.json (lu par la page) :
 charge, mémoire, disque, température, réponse de chaque application, sauvegardes de la nuit,
-certificat HTTPS, et un historique sur 24 heures (un point toutes les 5 minutes).
+certificat HTTPS, système (distribution, noyau, mises à jour en attente, redémarrage requis)
+et un historique sur 24 heures (un point toutes les 5 minutes).
 
-Le fichier est public : il ne contient ni version de logiciel, ni adresse, ni nom de machine,
-seulement des mesures et des états.
+Le fichier est public : il ne contient ni adresse, ni nom de machine. Il donne en revanche la
+version du système et la liste des paquets à mettre à jour (demandé pour la page d'état).
 """
 import json
 import os
+import platform
 import re
 import shutil
 import ssl
@@ -22,6 +24,7 @@ from pathlib import Path
 SORTIE = Path(__file__).resolve().parent.parent / "accueil" / "etat.json"
 HISTORIQUE_POINTS = 288          # 24 h à raison d'un point toutes les 5 minutes
 HISTORIQUE_PAS = 300             # secondes
+MISES_A_JOUR_PAS = 3600          # la liste des paquets à mettre à jour est relue toutes les heures
 
 # nom affiché, adresse du site, adresse de contrôle de son API (ou None)
 APPLICATIONS = [
@@ -165,8 +168,84 @@ def certificat_jours():
         return None
 
 
+def os_release():
+    """Champs de /etc/os-release (nom et version de la distribution)."""
+    champs = {}
+    for ligne in lire("/etc/os-release").splitlines():
+        if "=" in ligne:
+            cle, valeur = ligne.split("=", 1)
+            champs[cle] = valeur.strip().strip('"')
+    return champs
+
+
+def modele_processeur():
+    for ligne in lire("/proc/cpuinfo").splitlines():
+        if ligne.startswith("model name"):
+            return re.sub(r"\s+", " ", ligne.split(":", 1)[1]).strip()
+    return None
+
+
+def mises_a_jour():
+    """Paquets à mettre à jour d'après le cache d'apt (sans sudo, sans rafraîchir le cache)."""
+    try:
+        sortie = subprocess.run(["apt", "list", "--upgradable"], capture_output=True, text=True, timeout=60,
+                                env={**os.environ, "LANG": "C", "LC_ALL": "C"}).stdout
+    except (subprocess.SubprocessError, OSError):
+        return None
+    paquets = []
+    for ligne in sortie.splitlines():
+        # nom/suite1,suite2 nouvelle_version architecture [upgradable from: ancienne_version]
+        trouve = re.match(r"([^/\s]+)/(\S+) (\S+) \S+ \[upgradable from: ([^\]]+)\]", ligne)
+        if trouve:
+            paquets.append({"nom": trouve.group(1), "version": trouve.group(3), "depuis": trouve.group(4),
+                            "securite": "-security" in trouve.group(2)})
+    paquets.sort(key=lambda p: (not p["securite"], p["nom"]))
+    # Date du dernier « apt update » : modification la plus récente des listes de paquets
+    listes = [f.stat().st_mtime for f in Path("/var/lib/apt/lists").glob("*_Packages")] if Path("/var/lib/apt/lists").is_dir() else []
+    return {
+        "verifie": int(time.time()),
+        "cache": datetime.fromtimestamp(max(listes), timezone.utc).isoformat(timespec="seconds") if listes else None,
+        "total": len(paquets),
+        "securite": sum(p["securite"] for p in paquets),
+        "paquets": paquets,
+    }
+
+
+def nouvelle_version():
+    """Nouvelle version de la distribution annoncée par Ubuntu (fichier tenu à jour par update-notifier)."""
+    texte = lire("/var/lib/ubuntu-release-upgrader/release-upgrade-available").strip()
+    trouve = re.search(r"New release '([^']+)' available", texte)
+    return trouve.group(1) if trouve else None
+
+
+def systeme(precedent):
+    distribution = os_release()
+    # apt est lent : la liste n'est relue que toutes les heures, sinon on reprend la précédente
+    maj = (precedent or {}).get("mises_a_jour")
+    if not maj or time.time() - maj.get("verifie", 0) >= MISES_A_JOUR_PAS:
+        maj = mises_a_jour() or maj
+    redemarrage = lire("/var/run/reboot-required.pkgs").split()
+    return {
+        "distribution": distribution.get("PRETTY_NAME") or platform.system(),
+        "version": distribution.get("VERSION_ID"),
+        "nom_code": distribution.get("VERSION_CODENAME"),
+        "noyau": platform.release(),
+        "architecture": platform.machine(),
+        "processeur": modele_processeur(),
+        "python": platform.python_version(),
+        "redemarrage_requis": os.path.exists("/var/run/reboot-required"),
+        "redemarrage_paquets": sorted(set(redemarrage)),
+        "nouvelle_version": nouvelle_version(),
+        "mises_a_jour": maj,
+    }
+
+
 def main():
     maintenant = datetime.now(timezone.utc)
+    try:
+        precedent = json.loads(SORTIE.read_text())
+    except (OSError, ValueError):
+        precedent = {}
     coeurs = os.cpu_count() or 1
     charge = [float(v) for v in lire("/proc/loadavg").split()[:3]] or [0.0, 0.0, 0.0]
     etat = {
@@ -181,6 +260,7 @@ def main():
         "conteneurs": conteneurs(),
         "sauvegardes": sauvegardes(),
         "certificat_jours": certificat_jours(),
+        "systeme": systeme(precedent.get("systeme")),
     }
 
     # Bilan : « panne » si un service ne répond pas, « attention » si un seuil est dépassé
@@ -199,15 +279,16 @@ def main():
         alertes.append("certificat HTTPS bientôt expiré")
     if etat["processeur"]["temperature"] is not None and etat["processeur"]["temperature"] >= 80:
         alertes.append("processeur chaud")
+    maj = etat["systeme"]["mises_a_jour"]
+    if maj and maj["securite"]:
+        alertes.append(f"{maj['securite']} mise(s) à jour de sécurité en attente")
+    if etat["systeme"]["redemarrage_requis"]:
+        alertes.append("redémarrage requis pour terminer des mises à jour")
     etat["bilan"] = "panne" if pannes else "attention" if alertes else "ok"
     etat["messages"] = pannes + alertes
 
     # Historique sur 24 h : repris du fichier précédent, un point toutes les 5 minutes
-    historique = []
-    try:
-        historique = json.loads(SORTIE.read_text()).get("historique", [])
-    except (OSError, ValueError):
-        pass
+    historique = precedent.get("historique", [])
     instant = int(maintenant.timestamp())
     if not historique or instant - historique[-1]["t"] >= HISTORIQUE_PAS - 30:
         historique.append({"t": instant, "cpu": etat["processeur"]["pourcent"], "mem": etat["memoire"]["pourcent"],

@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>État du serveur — cyneprod.org</title>
+  <meta name="description" content="Supervision du serveur de cyneprod.org : processeur, mémoire, disques, applications, sauvegardes, système et mises à jour.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <style>
+    :root {
+      --fond: #f6f1e7;
+      --carte: #fffdf8;
+      --texte: #221d16;
+      --discret: #6b6255;
+      --trait: #e2d9c8;
+      --ombre: 0 1px 2px rgba(60, 45, 20, .06), 0 12px 32px -12px rgba(60, 45, 20, .22);
+      --serie-cpu: #2a78d6;
+      --serie-mem: #eb6834;
+      --jauge: #8a7f6c;
+      --ok: #0ca30c;
+      --alerte: #fab219;
+      --panne: #d03b3b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fond: #16130f;
+        --carte: #1f1b16;
+        --texte: #f1ebdf;
+        --discret: #a59b8a;
+        --trait: #342e25;
+        --ombre: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -14px rgba(0, 0, 0, .7);
+        --serie-cpu: #3987e5;
+        --serie-mem: #d95926;
+        --jauge: #8d8372;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--fond);
+      color: var(--texte);
+      font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .page { width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    header { padding: clamp(28px, 6vw, 64px) 0 clamp(20px, 4vw, 32px); }
+    .retour { display: inline-block; margin: 0 0 18px; font-size: .9rem; color: var(--discret); text-decoration: none; }
+    .retour:hover, .retour:focus-visible { color: var(--texte); }
+    .entete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+    .surtitre { margin: 0 0 4px; font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--discret); }
+    h1 { margin: 0; font: 600 clamp(2rem, 5.5vw, 3.2rem)/1.08 Georgia, "Times New Roman", serif; letter-spacing: -.01em; }
+    h2 { margin: 0 0 4px; font: 600 1.35rem/1.2 Georgia, "Times New Roman", serif; }
+    h3 { margin: 0 0 10px; font-size: .78rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--discret); }
+    .etat-bilan { text-align: right; }
+    .bilan { display: inline-flex; align-items: center; gap: 9px; margin: 0; font-weight: 600; font-size: 1.05rem; }
+    .maj { margin: 2px 0 0; font-size: .82rem; color: var(--discret); font-variant-numeric: tabular-nums; }
+    .pastille {
+      display: inline-grid; place-items: center; flex: none;
+      width: 1.35em; height: 1.35em; border-radius: 50%;
+      font-size: .78em; font-weight: 700; line-height: 1;
+      background: var(--niveau); color: #fff;
+    }
+    [data-niveau="ok"] { --niveau: var(--ok); }
+    [data-niveau="attention"], [data-niveau="perime"] { --niveau: var(--alerte); }
+    [data-niveau="panne"] { --niveau: var(--panne); }
+    .pastille[data-niveau="attention"], .pastille[data-niveau="perime"],
+    .bilan[data-niveau="attention"] .pastille, .bilan[data-niveau="perime"] .pastille { color: #221d16; }
+    .messages { margin: 16px 0 0; padding: 0; list-style: none; }
+    .messages:empty { display: none; }
+    .messages li { padding: 8px 12px; border-left: 3px solid var(--alerte); background: var(--carte); font-size: .92rem; }
+    .messages li + li { margin-top: 6px; }
+    body[data-niveau="panne"] .messages li { border-color: var(--panne); }
+
+    .bloc {
+      margin-top: clamp(20px, 3vw, 28px);
+      padding: clamp(20px, 3.5vw, 32px);
+      border: 1px solid var(--trait);
+      border-radius: 18px;
+      background: var(--carte);
+      box-shadow: var(--ombre);
+    }
+    .bloc[hidden], [hidden] { display: none; }
+    .bloc > .sous { margin: 0; font-size: .9rem; color: var(--discret); }
+
+    .mesures {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      margin: 18px 0 0;
+      border: 1px solid var(--trait);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    /* Bordures internes seulement : celles du bord droit et du bas sont rognées par le cadre */
+    .tuile { margin: 0 -1px -1px 0; padding: 14px 16px 16px; border: solid var(--trait); border-width: 0 1px 1px 0; min-width: 0; }
+    .tuile p { margin: 0; }
+    .tuile .nom { font-size: .76rem; letter-spacing: .08em; text-transform: uppercase; color: var(--discret); }
+    .tuile .valeur { margin-top: 4px; font: 600 1.55rem/1.15 Georgia, "Times New Roman", serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .systeme .tuile .valeur { font-size: 1.2rem; }
+    @media (max-width: 480px) {
+      .tuile { padding: 12px 12px 14px; }
+      .tuile .valeur { font-size: 1.3rem; }
+      .systeme .tuile .valeur { font-size: 1.05rem; }
+    }
+    .tuile:last-child { grid-column: span var(--reste2, 1); }
+    @media (min-width: 640px) {
+      .mesures { grid-template-columns: repeat(4, 1fr); }
+      .tuile:last-child { grid-column: span var(--reste4, 1); }
+    }
+    .tuile .detail { margin-top: 2px; font-size: .84rem; color: var(--discret); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .jauge { height: 5px; margin-top: 10px; border-radius: 3px; background: var(--trait); overflow: hidden; }
+    .jauge span { display: block; height: 100%; border-radius: 3px; background: var(--jauge); }
+    .jauge[data-niveau="attention"] span { background: var(--alerte); }
+    .jauge[data-niveau="panne"] span { background: var(--panne); }
+
+    .graphe { margin: 0; }
+    .graphe figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; margin-bottom: 10px; font-size: .88rem; }
+    .graphe-titre { font: 600 1.35rem/1.2 Georgia, "Times New Roman", serif; }
+    .legende { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 16px; color: var(--discret); font-variant-numeric: tabular-nums; }
+    .serie { display: inline-flex; align-items: center; gap: 7px; }
+    .serie i { width: 16px; height: 2px; border-radius: 1px; background: var(--couleur); }
+    .cpu { --couleur: var(--serie-cpu); }
+    .mem { --couleur: var(--serie-mem); }
+    .trace { position: relative; height: 180px; touch-action: pan-y; }
+    .trace svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .trace .grille { stroke: var(--trait); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .trace .base { stroke: var(--discret); stroke-opacity: .5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .trace .ligne { fill: none; stroke: var(--couleur); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+    .trace .panne { fill: var(--panne); }
+    .graduation { position: absolute; left: 0; transform: translateY(-115%); font-size: .72rem; color: var(--discret); pointer-events: none; }
+    .vide { display: grid; place-items: center; height: 100%; margin: 0; border: 1px dashed var(--trait); border-radius: 10px; font-size: .9rem; color: var(--discret); text-align: center; padding: 0 16px; }
+    .axe-x { display: flex; justify-content: space-between; margin-top: 6px; font-size: .72rem; color: var(--discret); }
+    .curseur { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--discret); opacity: .7; pointer-events: none; }
+    .point { position: absolute; left: 0; width: 9px; height: 9px; margin: -4.5px 0 0 -4px; border: 2px solid var(--carte); border-radius: 50%; background: var(--couleur); }
+    .bulle {
+      position: absolute; bottom: calc(100% + 8px); transform: translateX(-50%);
+      display: grid; gap: 1px; padding: 7px 10px; border: 1px solid var(--trait); border-radius: 8px;
+      background: var(--carte); box-shadow: var(--ombre); font-size: .8rem; white-space: nowrap;
+      font-variant-numeric: tabular-nums; pointer-events: none;
+    }
+    .bulle .cpu, .bulle .mem { display: flex; align-items: center; gap: 6px; }
+    .bulle .cpu::before, .bulle .mem::before { content: ""; width: 10px; height: 2px; background: var(--couleur); }
+    .bulle .incident { color: var(--panne); font-weight: 600; }
+    .resume { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 14px 0 0; font-size: .86rem; color: var(--discret); font-variant-numeric: tabular-nums; }
+    .resume b { color: var(--texte); font-weight: 600; }
+
+    .listes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 22px clamp(24px, 4vw, 48px); }
+    .liste { margin: 0; padding: 0; list-style: none; }
+    .liste li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--trait); font-size: .95rem; }
+    .liste .quoi { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .liste .combien { color: var(--discret); font-size: .86rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .etiquette { flex: none; padding: 1px 7px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--panne); color: #fff; }
+
+    .entete-bloc { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 18px; }
+    .paquets { margin-top: 16px; }
+    .paquets .quoi code { font: .9rem ui-monospace, "Cascadia Mono", Consolas, monospace; }
+    .paquets .version { font: .8rem ui-monospace, "Cascadia Mono", Consolas, monospace; }
+    @media (max-width: 560px) {
+      /* Sur téléphone, les versions passent sous le nom du paquet */
+      .paquets li { flex-wrap: wrap; row-gap: 2px; }
+      .paquets .version { flex-basis: 100%; padding-left: calc(.78em * 1.35 + 10px); text-align: left; }
+    }
+    .paquets details summary { cursor: pointer; padding: 8px 0; border-top: 1px solid var(--trait); font-size: .9rem; color: var(--discret); }
+    .note { margin: 14px 0 0; font-size: .82rem; color: var(--discret); }
+    .note code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+
+    footer { margin-top: auto; padding: clamp(36px, 6vw, 56px) 0 32px; font-size: .8rem; color: var(--discret); }
+    footer p { margin: 0; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body data-niveau="ok">
+  <div class="page">
+    <header>
+      <a class="retour" href="/">← cyneprod.org</a>
+      <div class="entete">
+        <div>
+          <p class="surtitre">Supervision</p>
+          <h1>État du serveur</h1>
+        </div>
+        <div class="etat-bilan">
+          <p class="bilan" data-niveau="perime"><span class="pastille" aria-hidden="true">?</span><span class="bilan-texte">Chargement…</span></p>
+          <p class="maj"></p>
+        </div>
+      </div>
+      <ul class="messages" aria-live="polite"></ul>
+    </header>
+
+    <!-- Rempli par le script en bas de page à partir de etat.json (relevé chaque minute sur le serveur) -->
+    <main id="contenu" hidden>
+      <section class="bloc" aria-labelledby="titre-ressources">
+        <h2 id="titre-ressources">Ressources</h2>
+        <div class="mesures ressources"></div>
+      </section>
+
+      <section class="bloc">
+        <figure class="graphe">
+          <figcaption>
+            <span class="graphe-titre">Dernières 24 heures</span>
+            <span class="legende"></span>
+          </figcaption>
+          <div class="trace" role="img"></div>
+          <div class="axe-x" aria-hidden="true"><span>−24 h</span><span>−18 h</span><span>−12 h</span><span>−6 h</span><span>maintenant</span></div>
+          <p class="resume"></p>
+        </figure>
+      </section>
+
+      <section class="bloc listes">
+        <div>
+          <h3>Applications</h3>
+          <ul class="liste services"></ul>
+        </div>
+        <div>
+          <h3>Sauvegardes de la nuit</h3>
+          <ul class="liste sauvegardes"></ul>
+        </div>
+      </section>
+
+      <section class="bloc systeme" aria-labelledby="titre-systeme" hidden>
+        <h2 id="titre-systeme">Système</h2>
+        <div class="mesures infos-systeme"></div>
+      </section>
+
+      <section class="bloc" aria-labelledby="titre-maj" id="bloc-maj" hidden>
+        <div class="entete-bloc">
+          <h2 id="titre-maj">Mises à jour</h2>
+          <p class="bilan maj-bilan" data-niveau="ok"><span class="pastille" aria-hidden="true"></span><span class="bilan-texte"></span></p>
+        </div>
+        <p class="sous maj-detail"></p>
+        <div class="paquets"></div>
+        <p class="note">Liste tirée du cache d'apt, relue toutes les heures. Installation sur le serveur : <code>sudo apt update && sudo apt upgrade</code>.</p>
+      </section>
+    </main>
+
+    <section class="bloc" id="indisponible" hidden>
+      <h2>Relevé indisponible</h2>
+      <p class="sous">Le fichier de mesures n'a pas pu être lu. Le relevé est fait chaque minute par <code>scripts/etat_serveur.py</code> sur le serveur.</p>
+    </section>
+
+    <footer>
+      <p><a href="/">cyneprod.org</a> · Infrastructure auto-hébergée · mise à jour automatique chaque minute</p>
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    const $ = s => document.querySelector(s);
+    const PAS = 300;                       // un point d'historique toutes les 5 minutes
+    const PERIME = 5 * 60 * 1000;          // au-delà, le relevé est considéré comme interrompu
+    const LIBELLES = { ok: 'Opérationnel', attention: 'Attention requise', panne: 'Incident en cours', perime: 'Relevé interrompu' };
+    const ICONES = { ok: '✓', attention: '!', panne: '✕', perime: '?' };
+    const SAUVEGARDE = { ok: 'réussie', partielle: 'partielle', echec: 'en échec', ancienne: 'pas de sauvegarde récente', inconnu: 'état inconnu' };
+    const PAQUETS_VISIBLES = 12;           // au-delà, le reste de la liste est replié
+    let donnees = null;
+
+    const nombre = (n, d = 0) => n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+    const pct = n => nombre(n, n < 10 ? 1 : 0) + ' %';
+    const go = o => { const g = o / 1024 ** 3; return nombre(g, g < 100 ? 1 : 0) + ' Go'; };
+    const heure = d => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const jour = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const niveau = (p, alerte, panne) => p >= panne ? 'panne' : p >= alerte ? 'attention' : 'ok';
+    const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+    function duree(s) {
+      const j = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+      return j ? `${j} j ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
+    }
+    function ilya(ms) {
+      const s = Math.max(0, Math.round(ms / 1000));
+      if (s < 60) return `il y a ${s} s`;
+      const m = Math.round(s / 60);
+      if (m < 60) return `il y a ${m} min`;
+      const h = Math.round(m / 60);
+      return h < 48 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} jours`;
+    }
+    function el(tag, classe, texte) {
+      const e = document.createElement(tag);
+      if (classe) e.className = classe;
+      if (texte != null) e.textContent = texte;
+      return e;
+    }
+    function pastille(n) {
+      const p = el('span', 'pastille', ICONES[n]);
+      p.dataset.niveau = n;
+      p.setAttribute('aria-hidden', 'true');
+      return p;
+    }
+    function ligne(n, quoi, combien) {
+      const li = el('li');
+      li.append(pastille(n), typeof quoi === 'string' ? el('span', 'quoi', quoi) : quoi, el('span', 'combien', combien));
+      return li;
+    }
+
+    function tuile(nom, valeur, detail, jauge) {
+      const t = el('div', 'tuile');
+      t.append(el('p', 'nom', nom), el('p', 'valeur', valeur), el('p', 'detail', detail));
+      if (jauge) {
+        const j = el('div', 'jauge');
+        j.dataset.niveau = jauge.niveau;
+        j.setAttribute('aria-hidden', 'true');
+        const r = el('span');
+        r.style.width = Math.min(100, Math.max(0, jauge.pourcent)) + '%';
+        j.append(r);
+        t.append(j);
+      }
+      return t;
+    }
+
+    // La dernière tuile s'étire sur les cases restantes de sa rangée (2 colonnes, ou 4 sur grand écran)
+    function sansCaseVide(grille) {
+      const n = grille.children.length, derniere = grille.lastElementChild;
+      if (!derniere) return;
+      derniere.style.setProperty('--reste2', (2 - n % 2) % 2 + 1);
+      derniere.style.setProperty('--reste4', (4 - n % 4) % 4 + 1);
+    }
+
+    function afficherMesures(d) {
+      const p = d.processeur, m = d.memoire, dq = d.disque;
+      const tuiles = [
+        tuile('Processeur', pct(p.pourcent), `${p.coeurs} cœurs`,
+              { pourcent: p.pourcent, niveau: niveau(p.pourcent, 75, 95) }),
+        tuile('Charge', nombre(p.charge[0], 2), `5 min ${nombre(p.charge[1], 2)} · 15 min ${nombre(p.charge[2], 2)}`,
+              { pourcent: p.charge_pourcent, niveau: niveau(p.charge_pourcent, 80, 100) }),
+        tuile('Mémoire', pct(m.pourcent), `${go(m.utilisee)} sur ${go(m.total)}`,
+              { pourcent: m.pourcent, niveau: niveau(m.pourcent, 80, 90) }),
+        tuile('Mémoire d\'échange', pct(m.echange_pourcent), 'swap utilisé',
+              { pourcent: m.echange_pourcent, niveau: niveau(m.echange_pourcent, 50, 80) }),
+      ];
+      if (dq) tuiles.push(tuile('Disque', pct(dq.pourcent), `${go(dq.libre)} libres sur ${go(dq.total)}`,
+                                { pourcent: dq.pourcent, niveau: niveau(dq.pourcent, 75, 85) }));
+      tuiles.push(d.nas
+        ? tuile('NAS de sauvegarde', pct(d.nas.pourcent), `${go(d.nas.libre)} libres sur ${go(d.nas.total)}`,
+                { pourcent: d.nas.pourcent, niveau: niveau(d.nas.pourcent, 80, 90) })
+        : tuile('NAS de sauvegarde', 'Absent', 'le NAS n\'est pas monté', { pourcent: 100, niveau: 'attention' }));
+      if (p.temperature != null) tuiles.push(tuile('Température', `${p.temperature} °C`, 'processeur',
+                                                   { pourcent: p.temperature, niveau: niveau(p.temperature, 70, 80) }));
+      if (d.depuis != null) {
+        const demarrage = new Date(Date.parse(d.genere) - d.depuis * 1000);
+        tuiles.push(tuile('En service depuis', duree(d.depuis), `démarré le ${jour(demarrage)} à ${heure(demarrage)}`));
+      }
+      if (d.certificat_jours != null) tuiles.push(tuile('Certificat HTTPS', `${d.certificat_jours} jours`, 'avant expiration',
+        { pourcent: 100 * (1 - Math.min(d.certificat_jours, 90) / 90), niveau: d.certificat_jours < 7 ? 'panne' : d.certificat_jours < 15 ? 'attention' : 'ok' }));
+      const c = d.conteneurs;
+      tuiles.push(tuile('Services de données', `${c.actifs} actifs`,
+        c.ok ? 'tous en bonne santé' : `${c.en_defaut} en défaut, ${c.manquants} arrêtés`));
+      $('.ressources').replaceChildren(...tuiles);
+      sansCaseVide($('.ressources'));
+    }
+
+    function afficherListes(d) {
+      $('.services').replaceChildren(...d.applications.map(a =>
+        ligne(a.ok ? 'ok' : 'panne', a.nom, a.ok ? `${nombre(a.ms)} ms` : a.site ? 'données indisponibles' : 'ne répond pas')));
+      $('.sauvegardes').replaceChildren(...d.sauvegardes.map(s => {
+        let detail = SAUVEGARDE[s.etat] || s.etat;
+        if (s.date) {
+          const date = new Date(s.date);
+          detail = (s.ok ? '' : detail + ' · ') + jour(date) + ' à ' + heure(date);
+        }
+        return ligne(s.ok ? 'ok' : s.etat === 'echec' ? 'panne' : 'attention', s.nom, detail);
+      }));
+    }
+
+    function afficherSysteme(d) {
+      const s = d.systeme;
+      $('.systeme').hidden = !s;
+      if (!s) return;
+      const tuiles = [
+        tuile('Distribution', s.distribution || '—', s.nom_code ? `nom de code ${s.nom_code}` : ''),
+        tuile('Noyau', s.noyau || '—', s.architecture || ''),
+        tuile('Processeur', s.processeur || '—', `${d.processeur.coeurs} cœurs`),
+        s.nouvelle_version
+          ? tuile('Nouvelle version', s.nouvelle_version, 'disponible (do-release-upgrade)', { pourcent: 100, niveau: 'attention' })
+          : tuile('Version', s.version || '—', 'pas de nouvelle version annoncée'),
+      ];
+      $('.infos-systeme').replaceChildren(...tuiles);
+      sansCaseVide($('.infos-systeme'));
+    }
+
+    function afficherMisesAJour(d) {
+      const s = d.systeme, maj = s && s.mises_a_jour;
+      $('#bloc-maj').hidden = !s;
+      if (!s) return;
+      const bilan = $('.maj-bilan');
+      const paquets = $('.paquets');
+      if (!maj) {
+        bilan.dataset.niveau = 'perime';
+        bilan.querySelector('.pastille').textContent = ICONES.perime;
+        bilan.querySelector('.bilan-texte').textContent = 'Inconnues';
+        $('.maj-detail').textContent = 'La liste des paquets n\'a pas pu être lue (apt absent ou indisponible).';
+        paquets.replaceChildren();
+        return;
+      }
+      const n = maj.securite || s.redemarrage_requis ? 'attention' : 'ok';
+      bilan.dataset.niveau = n;
+      bilan.querySelector('.pastille').textContent = ICONES[n];
+      bilan.querySelector('.bilan-texte').textContent = maj.total
+        ? `${pluriel(maj.total, 'paquet')} à mettre à jour` + (maj.securite ? ` dont ${maj.securite} de sécurité` : '')
+        : 'Système à jour';
+      const detail = [];
+      if (maj.cache) detail.push(`Liste des paquets rafraîchie ${ilya(Date.now() - Date.parse(maj.cache))}`);
+      detail.push(`vérifié ${ilya(Date.now() - maj.verifie * 1000)}`);
+      $('.maj-detail').textContent = detail.join(', ') + '.';
+
+      const lignes = [];
+      if (s.redemarrage_requis) {
+        const quoi = el('span', 'quoi', 'Redémarrage requis' + (s.redemarrage_paquets.length ? ` (${s.redemarrage_paquets.join(', ')})` : ''));
+        lignes.push(ligne('attention', quoi, 'pour finir l\'installation'));
+      }
+      const versLigne = p => {
+        const quoi = el('span', 'quoi');
+        quoi.append(el('code', null, p.nom));
+        const li = ligne(p.securite ? 'attention' : 'ok', quoi, `${p.depuis} → ${p.version}`);
+        li.querySelector('.pastille').textContent = p.securite ? '!' : '↑';
+        li.lastChild.classList.add('version');
+        if (p.securite) li.insertBefore(el('span', 'etiquette', 'sécurité'), li.lastChild);
+        return li;
+      };
+      const tous = maj.paquets || [];
+      const liste = el('ul', 'liste');
+      liste.append(...lignes, ...tous.slice(0, PAQUETS_VISIBLES).map(versLigne));
+      const enfants = [liste];
+      if (tous.length > PAQUETS_VISIBLES) {
+        const replie = el('details');
+        const reste = el('ul', 'liste');
+        reste.append(...tous.slice(PAQUETS_VISIBLES).map(versLigne));
+        replie.append(el('summary', null, `Voir les ${tous.length - PAQUETS_VISIBLES} autres paquets`), reste);
+        // Garder la liste ouverte si le visiteur l'a dépliée avant le rafraîchissement
+        replie.open = !!(paquets.querySelector('details') || {}).open;
+        enfants.push(replie);
+      }
+      paquets.replaceChildren(...enfants);
+    }
+
+    // Courbes processeur et mémoire sur 24 h (une ligne coupée là où des relevés manquent)
+    function afficherGraphe(d) {
+      const fin = Date.parse(d.genere) / 1000, debut = fin - 86400;
+      const points = (d.historique || []).filter(p => p.t >= debut);
+      const dernier = points[points.length - 1];
+      const legende = $('.legende');
+      legende.replaceChildren();
+      [['cpu', 'Processeur'], ['mem', 'Mémoire']].forEach(([cle, nom]) => {
+        const s = el('span', 'serie ' + cle);
+        s.append(el('i'), el('span', null, nom + (dernier ? ' ' + pct(dernier[cle]) : '')));
+        legende.append(s);
+      });
+      const trace = $('.trace'), resume = $('.resume');
+      if (points.length < 2) {
+        trace.replaceChildren(el('p', 'vide', 'L\'historique se constitue : un relevé toutes les 5 minutes.'));
+        trace.setAttribute('aria-label', 'Historique en cours de constitution');
+        resume.replaceChildren();
+        return;
+      }
+      const X = t => (t - debut) / 86400 * 1000, Y = v => 4 + (1 - v / 100) * 112;
+      const chemin = cle => points.map((p, i) =>
+        (i && p.t - points[i - 1].t <= 2 * PAS + 60 ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p[cle]).toFixed(1)).join('');
+      const pannes = points.filter(p => !p.ok).map(p =>
+        `<rect x="${(X(p.t) - 1.5).toFixed(1)}" y="112" width="3" height="8" class="panne"/>`).join('');
+      trace.innerHTML =
+        `<svg viewBox="0 0 1000 120" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" x2="1000" y1="${Y(100)}" y2="${Y(100)}" class="grille"/>
+          <line x1="0" x2="1000" y1="${Y(50)}" y2="${Y(50)}" class="grille"/>
+          <line x1="0" x2="1000" y1="${Y(0)}" y2="${Y(0)}" class="base"/>
+          ${pannes}
+          <path d="${chemin('mem')}" class="ligne mem"/>
+          <path d="${chemin('cpu')}" class="ligne cpu"/>
+        </svg>
+        <span class="graduation" style="top:${Y(100) / 1.2}%">100 %</span>
+        <span class="graduation" style="top:${Y(50) / 1.2}%">50 %</span>
+        <div class="curseur" hidden><span class="point cpu"></span><span class="point mem"></span></div>
+        <div class="bulle" hidden></div>`;
+      const moy = cle => points.reduce((s, p) => s + p[cle], 0) / points.length;
+      const max = cle => Math.max(...points.map(p => p[cle]));
+      const dispo = 100 * points.filter(p => p.ok).length / points.length;
+      trace.setAttribute('aria-label', `Sur 24 heures : processeur ${pct(moy('cpu'))} en moyenne, mémoire ${pct(moy('mem'))} en moyenne, disponibilité ${pct(dispo)}.`);
+      const stat = (nom, valeur) => { const s = el('span', null, nom + ' '); s.append(el('b', null, valeur)); return s; };
+      resume.replaceChildren(
+        stat('Processeur moyen', pct(moy('cpu'))), stat('pointe', pct(max('cpu'))),
+        stat('Mémoire moyenne', pct(moy('mem'))), stat('pointe', pct(max('mem'))),
+        stat('Disponibilité', pct(dispo)));
+
+      const curseur = trace.querySelector('.curseur'), bulle = trace.querySelector('.bulle');
+      const [pc, pm] = curseur.querySelectorAll('.point');
+      trace.onpointermove = e => {
+        const r = trace.getBoundingClientRect();
+        const t = debut + (e.clientX - r.left) / r.width * 86400;
+        const p = points.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
+        const x = X(p.t) / 10;
+        curseur.hidden = bulle.hidden = false;
+        curseur.style.left = x + '%';
+        pc.style.top = Y(p.cpu) / 1.2 + '%';
+        pm.style.top = Y(p.mem) / 1.2 + '%';
+        bulle.innerHTML = `<b>${heure(new Date(p.t * 1000))}</b><span class="cpu">Processeur ${pct(p.cpu)}</span><span class="mem">Mémoire ${pct(p.mem)}</span>${p.ok ? '' : '<span class="incident">Incident</span>'}`;
+        bulle.style.left = Math.min(Math.max(x, 12), 88) + '%';
+      };
+      trace.onpointerleave = () => { curseur.hidden = bulle.hidden = true; };
+    }
+
+    function afficherBilan() {
+      if (!donnees) return;
+      const age = Date.now() - Date.parse(donnees.genere);
+      const n = age > PERIME ? 'perime' : donnees.bilan;
+      const bilan = $('.bilan');
+      bilan.dataset.niveau = document.body.dataset.niveau = n;
+      bilan.querySelector('.pastille').textContent = ICONES[n];
+      bilan.querySelector('.bilan-texte').textContent = LIBELLES[n];
+      $('.maj').textContent = 'Relevé ' + ilya(age);
+      const messages = n === 'perime' ? ['les mesures ne sont plus mises à jour'] : donnees.messages;
+      $('.messages').replaceChildren(...messages.map(m => el('li', null, m.charAt(0).toUpperCase() + m.slice(1))));
+    }
+
+    async function charger() {
+      try {
+        const reponse = await fetch('etat.json', { cache: 'no-store' });
+        if (!reponse.ok) throw new Error(reponse.status);
+        donnees = await reponse.json();
+        afficherMesures(donnees);
+        afficherGraphe(donnees);
+        afficherListes(donnees);
+        afficherSysteme(donnees);
+        afficherMisesAJour(donnees);
+        $('#contenu').hidden = false;
+        $('#indisponible').hidden = true;
+      } catch (e) {
+        // Pas de relevé : message d'indisponibilité, ou dernières valeurs gardées si déjà affichées
+        if (!donnees) {
+          $('#indisponible').hidden = false;
+          $('.bilan-texte').textContent = 'Indisponible';
+        }
+      }
+      afficherBilan();
+    }
+
+    charger();
+    setInterval(charger, 60000);
+    setInterval(afficherBilan, 10000);
+  })();
+  </script>
+</body>
+</html>
