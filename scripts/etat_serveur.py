@@ -4,11 +4,15 @@
 Lancé chaque minute par cron, il écrit accueil/etat.json (lu par la page) :
 charge, mémoire, disque, température, réponse de chaque application, sauvegardes de la nuit,
 certificat HTTPS, système (distribution, noyau, mises à jour en attente, redémarrage requis)
-et un historique sur 24 heures (un point toutes les 5 minutes).
+et un historique sur 24 heures (un point toutes les 5 minutes). Également : disponibilité sur
+24 h / 7 j / 30 j, taille des données de chaque application (toutes les heures), fréquentation
+des dernières 24 h (journal nginx), dernier test de restauration, contrôle externe fait depuis le
+NAS, et renouvellement automatique du certificat. Envoie une alerte ntfy quand le bilan change.
 
 Le fichier est public : il ne contient ni adresse, ni nom de machine. Il donne en revanche la
 version du système et la liste des paquets à mettre à jour (demandé pour la page d'état).
 """
+import fcntl
 import json
 import os
 import platform
@@ -18,13 +22,27 @@ import ssl
 import socket
 import subprocess
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 SORTIE = Path(__file__).resolve().parent.parent / "accueil" / "etat.json"
+# Données privées (jamais publiées) : historique horaire, état des alertes, caches
+PRIVE = Path("~/.local/state/accueil/etat_prive.json").expanduser()
+VERROU = Path("~/.local/state/accueil/etat.verrou").expanduser()
 HISTORIQUE_POINTS = 288          # 24 h à raison d'un point toutes les 5 minutes
 HISTORIQUE_PAS = 300             # secondes
 MISES_A_JOUR_PAS = 3600          # la liste des paquets à mettre à jour est relue toutes les heures
+TAILLES_PAS = 3600               # tailles des bases et des fichiers : toutes les heures
+FREQUENTATION_PAS = 300          # fréquentation : toutes les 5 minutes
+DISPONIBILITE_HEURES = 30 * 24   # disponibilité gardée sur 30 jours, heure par heure
+PANNES_AVANT_ALERTE = 2          # relevés en panne d'affilée avant l'alerte (évite les fausses alertes)
+
+# Journal nginx avec le nom du site (installé par scripts/installer_journal_nginx.sh)
+JOURNAL_NGINX = Path("/var/log/nginx/acces_sites.log")
+TEST_RESTAURATION = Path("~/sauvegardes/TEST_RESTAURATION.json").expanduser()
+CONTROLE_EXTERNE = Path("/mnt/nas-sauvegardes/controle/DERNIER")     # écrit par le NAS (controle_externe.sh)
+ALERTE_CONFIG = Path("~/.config/lambretta-alerte").expanduser()       # NTFY_CANAL=..., secret
 
 # nom affiché, adresse du site, adresse de contrôle de son API (ou None)
 APPLICATIONS = [
@@ -49,6 +67,13 @@ PROJETS = {
     "aeromag": SERVICES_REQUIS,
     "carnet": SERVICES_REQUIS,  # stockage de fichiers depuis Carnets v1.4.0
 }
+# Données de chaque application : nom affiché, projet Supabase, dossier des sauvegardes
+DONNEES = [
+    ("Lambretta", "supabase", "~/sauvegardes/auto"),
+    ("Bultaco", "bultaco", "~/sauvegardes/auto-bultaco"),
+    ("AéroMag", "aeromag", "~/sauvegardes/auto-aeromag"),
+    ("Carnets d'entretien", "carnet", "~/sauvegardes/auto-carnet"),
+]
 
 
 def lire(chemin):
@@ -240,12 +265,214 @@ def systeme(precedent):
     }
 
 
+def renouvellement_automatique():
+    """Le minuteur de certbot, qui renouvelle le certificat, est-il actif ?"""
+    try:
+        r = subprocess.run(["systemctl", "is-active", "certbot.timer"], capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() == "active"
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
+def taille_dossier(chemin):
+    try:
+        return sum(f.stat().st_size for f in Path(chemin).rglob("*") if f.is_file())
+    except OSError:
+        return None
+
+
+def tailles():
+    """Pour chaque application : taille de la base, des fichiers déposés et de la dernière sauvegarde."""
+    resultat = []
+    for nom, projet, dossier in DONNEES:
+        entree = {"nom": nom, "base": None, "fichiers": None, "sauvegarde": None}
+        try:
+            r = subprocess.run(["docker", "exec", f"supabase_db_{projet}", "psql", "-U", "postgres", "-tAc",
+                                "select pg_database_size(current_database())"],
+                               capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+            entree["base"] = int(r.stdout.strip()) if r.stdout.strip().isdigit() else None
+            r = subprocess.run(["docker", "exec", f"supabase_storage_{projet}", "du", "-sb", "/mnt"],
+                               capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+            entree["fichiers"] = int(r.stdout.split()[0]) if r.returncode == 0 and r.stdout else None
+        except (subprocess.SubprocessError, OSError, ValueError):
+            pass
+        sauvegardes = sorted(p for p in Path(dossier).expanduser().glob("20*") if p.is_dir())
+        if sauvegardes:
+            entree["sauvegarde"] = taille_dossier(sauvegardes[-1])
+        resultat.append(entree)
+    return resultat
+
+
+MOIS = {m: i for i, m in enumerate(("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
+LIGNE_JOURNAL = re.compile(r'(\S+) (\S+) \[(\d\d)/(\w{3})/(\d{4}):(\d\d):(\d\d):(\d\d) ([+-]\d{4})\] '
+                           r'"(\S+) (\S+)[^"]*" (\d{3}) \S+ "[^"]*" "([^"]*)"')
+ROBOT = re.compile(r"bot|crawl|spider|slurp|curl|wget|python|go-http|scan|monitor|headless|preview", re.I)
+
+
+def frequentation(maintenant):
+    """Visites des dernières 24 heures, par application, d'après le journal nginx.
+
+    Ne compte ni les contrôles du serveur lui-même, ni les visites depuis la maison (adresse
+    publique du serveur), et met les robots à part. Aucune adresse n'est publiée.
+    """
+    fichiers = [f for f in (JOURNAL_NGINX.with_name(JOURNAL_NGINX.name + ".1"), JOURNAL_NGINX) if f.exists()]
+    if not fichiers:
+        return None
+    hotes = {}
+    for nom, site, api in APPLICATIONS:
+        hotes[re.match(r"https://([^/]+)", site).group(1)] = nom
+        if api:
+            hotes[re.match(r"https://([^/]+)", api).group(1)] = nom
+    hotes.setdefault("www.cyneprod.org", hotes.get("cyneprod.org"))
+    try:
+        maison = socket.gethostbyname("cyneprod.org")
+    except OSError:
+        maison = None
+    limite = maintenant.timestamp() - 86400
+    stats = {nom: {"nom": nom, "pages": 0, "visiteurs": set(), "requetes": 0, "robots": 0, "erreurs": 0}
+             for nom, _, _ in APPLICATIONS}
+    for fichier in fichiers:
+        try:
+            texte = fichier.read_text(errors="replace")
+        except OSError:
+            continue
+        for ligne in texte.splitlines():
+            m = LIGNE_JOURNAL.match(ligne)
+            if not m:
+                continue
+            hote, adresse, j, mois, a, h, mi, s, decalage, methode, chemin, code, agent = m.groups()
+            app = hotes.get(hote.lower())
+            if not app or adresse in ("127.0.0.1", "::1"):
+                continue
+            ts = datetime(int(a), MOIS.get(mois, 1), int(j), int(h), int(mi), int(s), tzinfo=timezone.utc).timestamp()
+            ts -= (int(decalage[:3]) * 60 + int(decalage[0] + decalage[3:])) * 60
+            if ts < limite:
+                continue
+            st = stats[app]
+            st["requetes"] += 1
+            if code.startswith("5"):
+                st["erreurs"] += 1
+            if ROBOT.search(agent) or not agent or agent == "-":
+                st["robots"] += 1
+                continue
+            if adresse == maison or chemin.startswith("/accueil/etat.json"):
+                continue
+            # Une page vue : GET réussi d'une adresse sans extension (ou .html) d'un site, pas d'une API
+            page = chemin.split("?")[0]
+            est_api = page.startswith(("/rest/", "/auth/", "/storage/", "/realtime/"))
+            if (methode == "GET" and code in ("200", "304") and not est_api
+                    and ("." not in page.rsplit("/", 1)[-1] or page.endswith(".html"))):
+                st["pages"] += 1
+                st["visiteurs"].add((adresse, agent))
+    resultat = []
+    for st in stats.values():
+        st["visiteurs"] = len(st["visiteurs"])
+        resultat.append(st)
+    return {"calcule": int(maintenant.timestamp()), "applications": resultat}
+
+
+def disponibilite(prive, instant, en_service):
+    """Part des relevés sans panne, sur 24 heures, 7 jours et 30 jours (cumul par heure)."""
+    heures = prive.setdefault("disponibilite", [])
+    heure = instant - instant % 3600
+    if not heures or heures[-1][0] != heure:
+        heures.append([heure, 0, 0])
+    heures[-1][1] += 1
+    heures[-1][2] += 1 if en_service else 0
+    del heures[:-DISPONIBILITE_HEURES]
+
+    def taux(jours):
+        retenues = [h for h in heures if instant - h[0] < jours * 86400]
+        total = sum(h[1] for h in retenues)
+        return round(100 * sum(h[2] for h in retenues) / total, 2) if total else None
+    premiere = heures[0][0] if heures else instant
+    return {"24h": taux(1), "7j": taux(7), "30j": taux(30), "depuis": datetime.fromtimestamp(premiere, timezone.utc).isoformat(timespec="seconds")}
+
+
+def test_restauration():
+    """Résultat du dernier test de restauration (scripts/test_restauration.py, chaque semaine)."""
+    try:
+        d = json.loads(TEST_RESTAURATION.read_text())
+    except (OSError, ValueError):
+        return None
+    age = time.time() - datetime.fromisoformat(d["date"]).timestamp()
+    return {"date": d["date"], "ok": d["ok"], "ancien": age > 8 * 86400,
+            "applications": [{k: a.get(k) for k in ("nom", "ok", "tables", "lignes", "fichiers", "erreur")}
+                             for a in d.get("applications", [])]}
+
+
+def controle_externe():
+    """Dernier passage du contrôle fait depuis le NAS (« OK|PANNE date : détail »)."""
+    try:
+        texte = CONTROLE_EXTERNE.read_text().strip()
+    except OSError:
+        return None
+    m = re.match(r"(OK|PANNE) (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)(?: : (.*))?", texte)
+    if not m:
+        return None
+    date = datetime.strptime(m.group(2), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    return {"ok": m.group(1) == "OK", "date": date.isoformat(), "detail": (m.group(3) or "")[:120],
+            "ancien": time.time() - date.timestamp() > 15 * 60}
+
+
+def envoyer_alerte(titre, message, priorite, etiquette):
+    canal = ""
+    if ALERTE_CONFIG.exists():
+        for ligne in ALERTE_CONFIG.read_text().splitlines():
+            if ligne.startswith("NTFY_CANAL="):
+                canal = ligne.split("=", 1)[1].strip().strip("\"'")
+    if not canal:
+        return False
+    corps = json.dumps({"topic": canal, "priority": priorite, "tags": [etiquette], "title": titre,
+                        "message": message, "click": "https://cyneprod.org/accueil/etat.html"}).encode()
+    try:
+        urllib.request.urlopen(urllib.request.Request("https://ntfy.sh", data=corps,
+                                                      headers={"Content-Type": "application/json"}), timeout=15)
+        return True
+    except OSError:
+        return False
+
+
+def alertes_telephone(prive, etat, alertes_cles):
+    """Alerte ntfy aux changements : panne (après 2 relevés), retour à la normale, nouvel avertissement."""
+    a = prive.setdefault("alertes", {"pannes_suivies": 0, "panne_signalee": False, "avertissements": []})
+    if etat["bilan"] == "panne":
+        a["pannes_suivies"] += 1
+        if a["pannes_suivies"] >= PANNES_AVANT_ALERTE and not a["panne_signalee"]:
+            if envoyer_alerte("cyneprod.org : incident", " ; ".join(etat["messages"]), 5, "rotating_light"):
+                a["panne_signalee"] = True
+    else:
+        if a["panne_signalee"] and envoyer_alerte("cyneprod.org : rétabli", "Tous les services répondent de nouveau.",
+                                                  3, "white_check_mark"):
+            a["panne_signalee"] = False
+        if not a["panne_signalee"]:
+            a["pannes_suivies"] = 0
+    # Avertissements : seulement ceux qui viennent d'apparaître (les échecs de sauvegarde ont déjà leur alerte)
+    nouveaux = [texte for cle, texte in alertes_cles if cle not in a["avertissements"]]
+    if nouveaux and envoyer_alerte("cyneprod.org : à surveiller", " ; ".join(nouveaux), 3, "warning"):
+        a["avertissements"] = [cle for cle, _ in alertes_cles]
+    elif not nouveaux:
+        a["avertissements"] = [cle for cle, _ in alertes_cles]
+
+
 def main():
+    # Une seule exécution à la fois (deux lignes cron ou un relevé lent ne se marchent pas dessus)
+    VERROU.parent.mkdir(parents=True, exist_ok=True)
+    verrou = open(VERROU, "w")
+    try:
+        fcntl.flock(verrou, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return
     maintenant = datetime.now(timezone.utc)
     try:
         precedent = json.loads(SORTIE.read_text())
     except (OSError, ValueError):
         precedent = {}
+    try:
+        prive = json.loads(PRIVE.read_text())
+    except (OSError, ValueError):
+        prive = {}
     coeurs = os.cpu_count() or 1
     charge = [float(v) for v in lire("/proc/loadavg").split()[:3]] or [0.0, 0.0, 0.0]
     etat = {
@@ -260,8 +487,20 @@ def main():
         "conteneurs": conteneurs(),
         "sauvegardes": sauvegardes(),
         "certificat_jours": certificat_jours(),
+        "certificat_renouvellement": renouvellement_automatique(),
         "systeme": systeme(precedent.get("systeme")),
+        "restauration": test_restauration(),
+        "controle_externe": controle_externe(),
     }
+    # Mesures plus lentes : recalculées à leur rythme, sinon reprises du relevé précédent
+    instant = int(maintenant.timestamp())
+    t = precedent.get("tailles")
+    etat["tailles"] = tailles() if not t or instant - t.get("calcule", 0) >= TAILLES_PAS else t
+    if etat["tailles"] is not t:
+        etat["tailles"] = {"calcule": instant, "applications": etat["tailles"]}
+    f = precedent.get("frequentation")
+    etat["frequentation"] = (frequentation(maintenant) if not f or instant - f.get("calcule", 0) >= FREQUENTATION_PAS - 30
+                             else f)
 
     # Bilan : « panne » si un service ne répond pas, « attention » si un seuil est dépassé
     alertes, pannes = [], []
@@ -284,12 +523,30 @@ def main():
         alertes.append(f"{maj['securite']} mise(s) à jour de sécurité en attente")
     if etat["systeme"]["redemarrage_requis"]:
         alertes.append("redémarrage requis pour terminer des mises à jour")
+    if etat["certificat_renouvellement"] is False:
+        alertes.append("renouvellement automatique du certificat arrêté")
+    r = etat["restauration"]
+    if r and not r["ok"]:
+        alertes.append("le dernier test de restauration a échoué")
+    elif r and r["ancien"]:
+        alertes.append("aucun test de restauration depuis plus d'une semaine")
+    c = etat["controle_externe"]
+    if c and c["ancien"]:
+        alertes.append("le contrôle externe (NAS) ne passe plus")
+    elif c and not c["ok"]:
+        alertes.append("contrôle externe : " + (c["detail"] or "accès depuis Internet en défaut"))
     etat["bilan"] = "panne" if pannes else "attention" if alertes else "ok"
     etat["messages"] = pannes + alertes
 
+    # Alertes sur le téléphone. Clé sans chiffres : « 3 mises à jour » puis « 4 mises à jour » = même alerte.
+    # Les échecs de sauvegarde sont déjà signalés par les scripts de sauvegarde eux-mêmes.
+    cles = [(re.sub(r"\d+", "#", m), m) for m in alertes
+            if not re.match(r"sauvegarde .* : (echec|partielle)$", m)]
+    alertes_telephone(prive, etat, cles)
+    etat["disponibilite"] = disponibilite(prive, instant, not pannes)
+
     # Historique sur 24 h : repris du fichier précédent, un point toutes les 5 minutes
     historique = precedent.get("historique", [])
-    instant = int(maintenant.timestamp())
     if not historique or instant - historique[-1]["t"] >= HISTORIQUE_PAS - 30:
         historique.append({"t": instant, "cpu": etat["processeur"]["pourcent"], "mem": etat["memoire"]["pourcent"],
                            "ok": etat["bilan"] != "panne"})
@@ -300,6 +557,9 @@ def main():
     provisoire.write_text(json.dumps(etat, ensure_ascii=False, separators=(",", ":")))
     os.chmod(provisoire, 0o644)
     os.replace(provisoire, SORTIE)
+    provisoire = PRIVE.with_suffix(".tmp")
+    provisoire.write_text(json.dumps(prive, separators=(",", ":")))
+    os.replace(provisoire, PRIVE)
 
 
 if __name__ == "__main__":
