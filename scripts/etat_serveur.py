@@ -157,7 +157,8 @@ def conteneurs():
         sortie = subprocess.run(["docker", "ps", "--format", "{{.Names}}|{{.Status}}"], capture_output=True, text=True, timeout=15).stdout
     except (subprocess.SubprocessError, OSError):
         return {"actifs": 0, "en_defaut": 0, "manquants": sum(len(s) for s in PROJETS.values()), "ok": False}
-    etats = dict(ligne.split("|", 1) for ligne in sortie.splitlines() if "|" in ligne)
+    # Seuls les conteneurs Supabase des applications comptent (pas le conteneur jetable du test de restauration)
+    etats = dict(ligne.split("|", 1) for ligne in sortie.splitlines() if ligne.startswith("supabase_") and "|" in ligne)
     en_defaut = sum(1 for etat in etats.values() if "unhealthy" in etat or "Restarting" in etat)
     manquants = sum(1 for p, services in PROJETS.items() for s in services if f"supabase_{s}_{p}" not in etats)
     return {"actifs": len(etats), "en_defaut": en_defaut, "manquants": manquants, "ok": en_defaut == 0 and manquants == 0}

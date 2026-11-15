@@ -99,7 +99,7 @@ def tester(nom, dossier, conteneur_base):
         return resultat
     docker("rm", "-f", CONTENEUR)
     try:
-        r = docker("run", "-d", "--name", CONTENEUR, "--network", "none", "--memory", "1g",
+        r = docker("run", "-d", "--name", CONTENEUR, "--network", "none", "--memory", "1g", "--no-healthcheck",
                    "-e", "POSTGRES_PASSWORD=test-restauration-jetable", image)
         if r.returncode:
             resultat["erreur"] = "conteneur de test non démarré"
