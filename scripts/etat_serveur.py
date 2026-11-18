@@ -8,6 +8,9 @@ et un historique sur 24 heures (un point toutes les 5 minutes). Également : dis
 24 h / 7 j / 30 j, taille des données de chaque application (toutes les heures), fréquentation
 des dernières 24 h (journal nginx), dernier test de restauration, contrôle externe fait depuis le
 NAS, et renouvellement automatique du certificat. Envoie une alerte ntfy quand le bilan change.
+Aussi : dernier passage des mises à jour automatiques, services systemd en échec, synchronisation
+de l'heure, version de Docker et redémarrages des conteneurs, débit réseau, tendance de
+remplissage du disque et du NAS, et un historique sur 7 jours (un point par heure).
 
 Le fichier est public : il ne contient ni adresse, ni nom de machine. Il donne en revanche la
 version du système et la liste des paquets à mettre à jour (demandé pour la page d'état).
@@ -37,6 +40,11 @@ TAILLES_PAS = 3600               # tailles des bases et des fichiers : toutes le
 FREQUENTATION_PAS = 300          # fréquentation : toutes les 5 minutes
 DISPONIBILITE_HEURES = 30 * 24   # disponibilité gardée sur 30 jours, heure par heure
 PANNES_AVANT_ALERTE = 2          # relevés en panne d'affilée avant l'alerte (évite les fausses alertes)
+HISTORIQUE_7J_POINTS = 7 * 24    # historique sur 7 jours, un point par heure
+TENDANCE_JOURS = 30              # tendance de remplissage des disques calculée sur 30 jours
+PLEIN_ALERTE_JOURS = 60          # alerte si un disque doit être plein dans moins de 60 jours
+MAJ_AUTO_ALERTE_HEURES = 48      # alerte si les mises à jour automatiques n'ont pas tourné depuis 2 jours
+REDEMARRAGE_ALERTE = 3600        # alerte si un conteneur a redémarré tout seul dans la dernière heure
 
 # Journal nginx avec le nom du site (installé par scripts/installer_journal_nginx.sh)
 JOURNAL_NGINX = Path("/var/log/nginx/acces_sites.log")
@@ -263,16 +271,159 @@ def systeme(precedent):
         "redemarrage_paquets": sorted(set(redemarrage)),
         "nouvelle_version": nouvelle_version(),
         "mises_a_jour": maj,
+        "mises_a_jour_auto": mises_a_jour_automatiques(),
+        "docker": version_docker(),
+        "services_en_echec": services_en_echec(),
+        "heure_synchronisee": heure_synchronisee(),
     }
+
+
+def unite_active(unite):
+    """L'unité systemd est-elle active ? None si systemctl ne répond pas."""
+    try:
+        r = subprocess.run(["systemctl", "is-active", unite], capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() == "active"
+    except (subprocess.SubprocessError, OSError):
+        return None
 
 
 def renouvellement_automatique():
     """Le minuteur de certbot, qui renouvelle le certificat, est-il actif ?"""
+    return unite_active("certbot.timer")
+
+
+def mises_a_jour_automatiques():
+    """Dernier passage d'unattended-upgrades (horodatage tenu par apt) et état de son minuteur."""
     try:
-        r = subprocess.run(["systemctl", "is-active", "certbot.timer"], capture_output=True, text=True, timeout=10)
-        return r.stdout.strip() == "active"
+        tampon = Path("/var/lib/apt/periodic/unattended-upgrades-stamp").stat().st_mtime
+        dernier = datetime.fromtimestamp(tampon, timezone.utc).isoformat(timespec="seconds")
+    except OSError:
+        dernier = None
+    return {"dernier": dernier, "minuteur": unite_active("apt-daily-upgrade.timer")}
+
+
+def services_en_echec():
+    """Unités systemd en échec (nginx, cron, montage du NAS…). None si systemctl ne répond pas."""
+    try:
+        r = subprocess.run(["systemctl", "list-units", "--state=failed", "--no-legend", "--plain", "--no-pager"],
+                           capture_output=True, text=True, timeout=10)
     except (subprocess.SubprocessError, OSError):
         return None
+    if r.returncode != 0:
+        return None
+    return sorted(ligne.split()[0] for ligne in r.stdout.splitlines() if ligne.strip())
+
+
+def heure_synchronisee():
+    """L'horloge est-elle synchronisée par NTP ? None si inconnu."""
+    try:
+        r = subprocess.run(["timedatectl", "show", "-p", "NTPSynchronized", "--value"],
+                           capture_output=True, text=True, timeout=10)
+    except (subprocess.SubprocessError, OSError):
+        return None
+    return {"yes": True, "no": False}.get(r.stdout.strip())
+
+
+def version_docker():
+    try:
+        r = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
+                           capture_output=True, text=True, timeout=15)
+    except (subprocess.SubprocessError, OSError):
+        return None
+    return r.stdout.strip() or None
+
+
+def redemarrages_conteneurs(prive, instant):
+    """Redémarrages automatiques des conteneurs Supabase (compteur de Docker), avec l'heure du dernier vu.
+
+    Docker ne date pas les redémarrages : on retient l'instant où le compteur a augmenté.
+    """
+    try:
+        ids = subprocess.run(["docker", "ps", "-q", "--filter", "name=supabase_"],
+                             capture_output=True, text=True, timeout=15).stdout.split()
+        sortie = subprocess.run(["docker", "inspect", "--format", "{{.Name}}|{{.RestartCount}}", *ids],
+                                capture_output=True, text=True, timeout=15).stdout if ids else ""
+    except (subprocess.SubprocessError, OSError):
+        return None
+    ancien = prive.get("redemarrages", {})
+    suivi, resultat = {}, []
+    for ligne in sortie.splitlines():
+        nom, _, compte = ligne.lstrip("/").partition("|")
+        if not compte.isdigit():
+            continue
+        n = int(compte)
+        precedent = ancien.get(nom, {"n": n, "dernier": None})
+        # Compteur en hausse : nouveau redémarrage. En baisse : conteneur recréé, on repart de là.
+        dernier = instant if n > precedent["n"] else precedent["dernier"]
+        suivi[nom] = {"n": n, "dernier": dernier}
+        if n or dernier:
+            resultat.append({"nom": nom, "total": n, "dernier": dernier})
+    prive["redemarrages"] = suivi
+    return sorted(resultat, key=lambda r: -(r["dernier"] or 0))
+
+
+def compteurs_reseau():
+    """Octets reçus et envoyés par les cartes réseau physiques (sans les interfaces virtuelles de Docker)."""
+    recu = envoye = 0
+    for ligne in lire("/proc/net/dev").splitlines()[2:]:
+        nom, _, valeurs = ligne.partition(":")
+        if not Path(f"/sys/class/net/{nom.strip()}/device").exists():
+            continue
+        v = valeurs.split()
+        recu, envoye = recu + int(v[0]), envoye + int(v[8])
+    return recu, envoye
+
+
+def tendance_remplissage(prive, instant, etat):
+    """Jours avant que le disque et le NAS soient pleins, d'après la tendance des 30 derniers jours.
+
+    Un point par jour (le dernier relevé du jour), pente par moindres carrés. Rien si l'occupation
+    ne croît pas ou si l'on a moins de 3 jours de mesures.
+    """
+    points = prive.setdefault("occupation", [])
+    jour = instant - instant % 86400
+    valeurs = [etat[cle]["utilise"] if etat[cle] else None for cle in ("disque", "nas")]
+    if not points or points[-1][0] != jour:
+        points.append([jour, *valeurs])
+    else:
+        points[-1][1:] = [v if v is not None else a for v, a in zip(valeurs, points[-1][1:])]
+    del points[:-TENDANCE_JOURS]
+    for i, cle in ((1, "disque"), (2, "nas")):
+        mesure = etat[cle]
+        if not mesure:
+            continue
+        serie = [(p[0], p[i]) for p in points if p[i] is not None]
+        mesure["plein_dans_jours"] = None
+        mesure["tendance_jours"] = round((serie[-1][0] - serie[0][0]) / 86400) if serie else 0
+        if len(serie) < 3:
+            continue
+        n = len(serie)
+        mt, mv = sum(t for t, _ in serie) / n, sum(v for _, v in serie) / n
+        ecart = sum((t - mt) ** 2 for t, _ in serie)
+        pente = sum((t - mt) * (v - mv) for t, v in serie) / ecart * 86400 if ecart else 0   # octets par jour
+        mesure["croissance_jour"] = round(pente)
+        if pente > 0:
+            mesure["plein_dans_jours"] = int(mesure["libre"] / pente)
+
+
+def moyenne(points, cle):
+    valeurs = [p[cle] for p in points if p.get(cle) is not None]
+    return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
+
+
+def historique_7j(precedent, historique, instant):
+    """Un point par heure terminée, calculé à partir des points de 5 minutes (gardés 24 h)."""
+    points = precedent.get("historique_7j", [])
+    heure_courante = instant - instant % 3600
+    debut = max(points[-1]["t"] + 3600 if points else 0, heure_courante - 24 * 3600)
+    for h in range(debut, heure_courante, 3600):
+        dans = [p for p in historique if h <= p["t"] < h + 3600]
+        if not dans:
+            continue
+        points.append({"t": h, "cpu": moyenne(dans, "cpu"), "cpu_max": max(p["cpu"] for p in dans),
+                       "mem": moyenne(dans, "mem"), "disque": moyenne(dans, "disque"), "temp": moyenne(dans, "temp"),
+                       "rx": moyenne(dans, "rx"), "tx": moyenne(dans, "tx"), "ok": all(p["ok"] for p in dans)})
+    return [p for p in points if instant - p["t"] <= HISTORIQUE_7J_POINTS * 3600][-HISTORIQUE_7J_POINTS:]
 
 
 def taille_dossier(chemin):
@@ -286,7 +437,7 @@ def tailles():
     """Pour chaque application : taille de la base, des fichiers déposés et de la dernière sauvegarde."""
     resultat = []
     for nom, projet, dossier in DONNEES:
-        entree = {"nom": nom, "base": None, "fichiers": None, "sauvegarde": None}
+        entree = {"nom": nom, "base": None, "fichiers": None, "sauvegarde": None, "sauvegarde_precedente": None}
         try:
             r = subprocess.run(["docker", "exec", f"supabase_db_{projet}", "psql", "-U", "postgres", "-tAc",
                                 "select pg_database_size(current_database())"],
@@ -300,6 +451,9 @@ def tailles():
         sauvegardes = sorted(p for p in Path(dossier).expanduser().glob("20*") if p.is_dir())
         if sauvegardes:
             entree["sauvegarde"] = taille_dossier(sauvegardes[-1])
+        if len(sauvegardes) > 1:
+            # Pour repérer une sauvegarde anormalement petite (données perdues, export incomplet)
+            entree["sauvegarde_precedente"] = taille_dossier(sauvegardes[-2])
         resultat.append(entree)
     return resultat
 
@@ -502,6 +656,8 @@ def main():
     f = precedent.get("frequentation")
     etat["frequentation"] = (frequentation(maintenant) if not f or instant - f.get("calcule", 0) >= FREQUENTATION_PAS - 30
                              else f)
+    etat["conteneurs"]["redemarrages"] = redemarrages_conteneurs(prive, instant)
+    tendance_remplissage(prive, instant, etat)
 
     # Bilan : « panne » si un service ne répond pas, « attention » si un seuil est dépassé
     alertes, pannes = [], []
@@ -536,6 +692,29 @@ def main():
         alertes.append("le contrôle externe (NAS) ne passe plus")
     elif c and not c["ok"]:
         alertes.append("contrôle externe : " + (c["detail"] or "accès depuis Internet en défaut"))
+    s = etat["systeme"]
+    auto = s["mises_a_jour_auto"]
+    if auto["minuteur"] is False:
+        alertes.append("mises à jour automatiques désactivées")
+    elif auto["dernier"] is None:
+        alertes.append("mises à jour automatiques jamais lancées")
+    elif instant - datetime.fromisoformat(auto["dernier"]).timestamp() > MAJ_AUTO_ALERTE_HEURES * 3600:
+        alertes.append("mises à jour automatiques arrêtées depuis plus de 2 jours")
+    if s["services_en_echec"]:
+        alertes.append("service(s) système en échec : " + ", ".join(s["services_en_echec"]))
+    if s["heure_synchronisee"] is False:
+        alertes.append("horloge du serveur non synchronisée")
+    for r in etat["conteneurs"]["redemarrages"] or []:
+        if r["dernier"] and instant - r["dernier"] < REDEMARRAGE_ALERTE:
+            alertes.append(f"le conteneur {r['nom']} a redémarré tout seul")
+    for cle, nom in (("disque", "disque"), ("nas", "NAS de sauvegarde")):
+        jours = (etat[cle] or {}).get("plein_dans_jours")
+        if jours is not None and jours < PLEIN_ALERTE_JOURS:
+            alertes.append(f"{nom} plein dans environ {jours} jours au rythme actuel")
+    for a in etat["tailles"]["applications"]:
+        actuelle, avant = a.get("sauvegarde"), a.get("sauvegarde_precedente")
+        if actuelle is not None and avant and avant > 1024 ** 2 and actuelle < avant / 2:
+            alertes.append(f"sauvegarde {a['nom']} deux fois plus petite que la précédente")
     etat["bilan"] = "panne" if pannes else "attention" if alertes else "ok"
     etat["messages"] = pannes + alertes
 
@@ -549,9 +728,19 @@ def main():
     # Historique sur 24 h : repris du fichier précédent, un point toutes les 5 minutes
     historique = precedent.get("historique", [])
     if not historique or instant - historique[-1]["t"] >= HISTORIQUE_PAS - 30:
-        historique.append({"t": instant, "cpu": etat["processeur"]["pourcent"], "mem": etat["memoire"]["pourcent"],
-                           "ok": etat["bilan"] != "panne"})
+        point = {"t": instant, "cpu": etat["processeur"]["pourcent"], "mem": etat["memoire"]["pourcent"],
+                 "disque": etat["disque"]["pourcent"] if etat["disque"] else None,
+                 "temp": etat["processeur"]["temperature"], "ok": etat["bilan"] != "panne"}
+        # Débit réseau moyen depuis le point précédent, en octets par seconde (rien après un redémarrage)
+        recu, envoye = compteurs_reseau()
+        r = prive.get("reseau")
+        if r and instant > r[0] and recu >= r[1] and envoye >= r[2]:
+            point["rx"] = round((recu - r[1]) / (instant - r[0]))
+            point["tx"] = round((envoye - r[2]) / (instant - r[0]))
+        prive["reseau"] = [instant, recu, envoye]
+        historique.append(point)
     etat["historique"] = [p for p in historique if instant - p["t"] <= HISTORIQUE_POINTS * HISTORIQUE_PAS][-HISTORIQUE_POINTS:]
+    etat["historique_7j"] = historique_7j(precedent, etat["historique"], instant)
 
     # Écriture atomique : la page ne lit jamais un fichier à moitié écrit
     provisoire = SORTIE.with_suffix(".json.tmp")

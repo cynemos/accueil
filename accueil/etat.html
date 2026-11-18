@@ -19,6 +19,7 @@
       --ombre: 0 1px 2px rgba(60, 45, 20, .06), 0 12px 32px -12px rgba(60, 45, 20, .22);
       --serie-cpu: #2a78d6;
       --serie-mem: #eb6834;
+      --serie-disque: #7b5cc4;
       --jauge: #8a7f6c;
       --ok: #0ca30c;
       --alerte: #fab219;
@@ -34,6 +35,7 @@
         --ombre: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 36px -14px rgba(0, 0, 0, .7);
         --serie-cpu: #3987e5;
         --serie-mem: #d95926;
+        --serie-disque: #a28ae6;
         --jauge: #8d8372;
       }
     }
@@ -119,6 +121,20 @@
     .jauge[data-niveau="panne"] span { background: var(--panne); }
 
     .graphe { margin: 0; }
+    .graphe + .graphe { margin-top: 30px; }
+    .graphe .disque { --couleur: var(--serie-disque); }
+    .graphe .temp, .graphe .tx { --couleur: var(--serie-mem); }
+    .graphe .rx { --couleur: var(--serie-cpu); }
+    .periodes { display: inline-flex; padding: 3px; border: 1px solid var(--trait); border-radius: 999px; background: var(--fond); }
+    .periodes button {
+      padding: 4px 14px; border: 0; border-radius: 999px; background: none; color: var(--discret);
+      font: inherit; font-size: .86rem; cursor: pointer;
+    }
+    .periodes button[aria-pressed="true"] { background: var(--carte); color: var(--texte); font-weight: 600; box-shadow: var(--ombre); }
+    .periodes button:focus-visible { outline: 2px solid var(--serie-cpu); outline-offset: 1px; }
+    .historique .entete-bloc { margin-bottom: 18px; }
+    .historique .graphe-titre { font: 600 .95rem/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .historique .trace { height: 150px; margin-top: 22px; }   /* place pour la graduation du haut */
     .graphe figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; margin-bottom: 10px; font-size: .88rem; }
     .graphe-titre { font: 600 1.35rem/1.2 Georgia, "Times New Roman", serif; }
     .legende { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 16px; color: var(--discret); font-variant-numeric: tabular-nums; }
@@ -143,8 +159,9 @@
       background: var(--carte); box-shadow: var(--ombre); font-size: .8rem; white-space: nowrap;
       font-variant-numeric: tabular-nums; pointer-events: none;
     }
-    .bulle .cpu, .bulle .mem { display: flex; align-items: center; gap: 6px; }
-    .bulle .cpu::before, .bulle .mem::before { content: ""; width: 10px; height: 2px; background: var(--couleur); }
+    .bulle[hidden] { display: none; }
+    .bulle .valeur-serie { display: flex; align-items: center; gap: 6px; }
+    .bulle .valeur-serie::before { content: ""; width: 10px; height: 2px; background: var(--couleur); }
     .bulle .incident { color: var(--panne); font-weight: 600; }
     .resume { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 14px 0 0; font-size: .86rem; color: var(--discret); font-variant-numeric: tabular-nums; }
     .resume b { color: var(--texte); font-weight: 600; }
@@ -169,11 +186,12 @@
     .pastille[data-niveau="neutre"] { background: var(--trait); color: var(--discret); }
     .tuile[data-niveau="attention"] .valeur { color: var(--texte); box-shadow: inset 0 -3px 0 var(--alerte); }
     .tuile[data-niveau="panne"] .valeur { color: var(--panne); }
-    .listes-fiabilite { margin-top: 22px; }
+    .listes-fiabilite { margin-top: 22px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
+    .tailles .quoi, .redemarrages .quoi, .restaurations .quoi { min-width: 7em; }   /* le détail passe à la ligne, pas le nom */
     @media (max-width: 560px) {
       /* Sur téléphone, le détail passe sous le nom de l'application */
-      .restaurations li, .tailles li, .frequentation li { flex-wrap: wrap; row-gap: 2px; }
-      .restaurations .combien, .tailles .combien, .frequentation .combien { flex-basis: 100%; padding-left: calc(.78em * 1.35 + 10px); text-align: left; }
+      .restaurations li, .tailles li, .frequentation li, .redemarrages li { flex-wrap: wrap; row-gap: 2px; }
+      .restaurations .combien, .tailles .combien, .frequentation .combien, .redemarrages .combien { flex-basis: 100%; padding-left: calc(.78em * 1.35 + 10px); text-align: left; }
       .fiabilite .valeur { font-size: 1.2rem; }
     }
     .vide-liste { padding: 8px 0; border-top: 1px solid var(--trait); font-size: .9rem; color: var(--discret); }
@@ -209,16 +227,30 @@
         <div class="mesures ressources"></div>
       </section>
 
-      <section class="bloc">
-        <figure class="graphe">
-          <figcaption>
-            <span class="graphe-titre">Dernières 24 heures</span>
-            <span class="legende"></span>
-          </figcaption>
+      <section class="bloc historique" aria-labelledby="titre-historique">
+        <div class="entete-bloc">
+          <h2 id="titre-historique">Historique</h2>
+          <div class="periodes" role="group" aria-label="Période affichée">
+            <button type="button" data-periode="24h" aria-pressed="true">24 heures</button>
+            <button type="button" data-periode="7j" aria-pressed="false">7 jours</button>
+          </div>
+        </div>
+        <figure class="graphe" data-graphe="charge">
+          <figcaption><span class="graphe-titre">Processeur, mémoire et disque</span><span class="legende"></span></figcaption>
           <div class="trace" role="img"></div>
-          <div class="axe-x" aria-hidden="true"><span>−24 h</span><span>−18 h</span><span>−12 h</span><span>−6 h</span><span>maintenant</span></div>
-          <p class="resume"></p>
+          <div class="axe-x" aria-hidden="true"></div>
         </figure>
+        <figure class="graphe" data-graphe="temp">
+          <figcaption><span class="graphe-titre">Température</span><span class="legende"></span></figcaption>
+          <div class="trace" role="img"></div>
+          <div class="axe-x" aria-hidden="true"></div>
+        </figure>
+        <figure class="graphe" data-graphe="reseau">
+          <figcaption><span class="graphe-titre">Réseau</span><span class="legende"></span></figcaption>
+          <div class="trace" role="img"></div>
+          <div class="axe-x" aria-hidden="true"></div>
+        </figure>
+        <p class="resume"></p>
       </section>
 
       <section class="bloc listes">
@@ -243,6 +275,10 @@
           <div>
             <h3>Données par application</h3>
             <ul class="liste tailles"></ul>
+          </div>
+          <div>
+            <h3>Redémarrages de conteneurs</h3>
+            <ul class="liste redemarrages"></ul>
           </div>
         </div>
         <p class="note">Chaque semaine, la dernière sauvegarde de chaque application est restaurée dans une base jetable et comparée, table par table, au contenu du fichier de sauvegarde. Le contrôle externe est fait par le NAS toutes les 5 minutes, par Internet.</p>
@@ -354,6 +390,19 @@
       derniere.style.setProperty('--reste4', (4 - n % 4) % 4 + 1);
     }
 
+    // Débits en unités décimales (1 ko = 1000 octets), comme les fournisseurs d'accès
+    const debit = o => o == null ? '—' : o < 1000 ? nombre(o) + ' o/s'
+      : o < 1e6 ? nombre(o / 1000, o < 1e4 ? 1 : 0) + ' ko/s' : nombre(o / 1e6, 1) + ' Mo/s';
+    const delai = j => j < 60 ? `${j} jours` : j < 730 ? `${Math.round(j / 30)} mois` : `${Math.round(j / 365)} ans`;
+    // Tendance de remplissage affichée seulement si elle tombe dans les 10 ans
+    const pleinBientot = x => x.plein_dans_jours != null && x.plein_dans_jours < 3650;
+    const detailDisque = x => pleinBientot(x)
+      ? `${go(x.libre)} libres · plein dans ≈ ${delai(x.plein_dans_jours)}` : `${go(x.libre)} libres sur ${go(x.total)}`;
+    const niveauDisque = (x, alerte, panne) => {
+      const n = niveau(x.pourcent, alerte, panne);
+      return n === 'ok' && x.plein_dans_jours != null && x.plein_dans_jours < 60 ? 'attention' : n;
+    };
+
     function afficherMesures(d) {
       const p = d.processeur, m = d.memoire, dq = d.disque;
       const tuiles = [
@@ -366,11 +415,11 @@
         tuile('Mémoire d\'échange', pct(m.echange_pourcent), 'swap utilisé',
               { pourcent: m.echange_pourcent, niveau: niveau(m.echange_pourcent, 50, 80) }),
       ];
-      if (dq) tuiles.push(tuile('Disque', pct(dq.pourcent), `${go(dq.libre)} libres sur ${go(dq.total)}`,
-                                { pourcent: dq.pourcent, niveau: niveau(dq.pourcent, 75, 85) }));
+      if (dq) tuiles.push(tuile('Disque', pct(dq.pourcent), detailDisque(dq),
+                                { pourcent: dq.pourcent, niveau: niveauDisque(dq, 75, 85) }));
       tuiles.push(d.nas
-        ? tuile('NAS de sauvegarde', pct(d.nas.pourcent), `${go(d.nas.libre)} libres sur ${go(d.nas.total)}`,
-                { pourcent: d.nas.pourcent, niveau: niveau(d.nas.pourcent, 80, 90) })
+        ? tuile('NAS de sauvegarde', pct(d.nas.pourcent), detailDisque(d.nas),
+                { pourcent: d.nas.pourcent, niveau: niveauDisque(d.nas, 80, 90) })
         : tuile('NAS de sauvegarde', 'Absent', 'le NAS n\'est pas monté', { pourcent: 100, niveau: 'attention' }));
       if (p.temperature != null) tuiles.push(tuile('Température', `${p.temperature} °C`, 'processeur',
                                                    { pourcent: p.temperature, niveau: niveau(p.temperature, 70, 80) }));
@@ -380,6 +429,8 @@
       }
       if (d.certificat_jours != null) tuiles.push(tuile('Certificat HTTPS', `${d.certificat_jours} jours`, 'avant expiration',
         { pourcent: 100 * (1 - Math.min(d.certificat_jours, 90) / 90), niveau: d.certificat_jours < 7 ? 'panne' : d.certificat_jours < 15 ? 'attention' : 'ok' }));
+      const reseau = (d.historique || []).filter(p => p.rx != null).pop();
+      if (reseau) tuiles.push(tuile('Réseau', `↓ ${debit(reseau.rx)}`, `↑ ${debit(reseau.tx)} · moyenne sur 5 min`));
       const c = d.conteneurs;
       tuiles.push(tuile('Services de données', `${c.actifs} actifs`,
         c.ok ? 'tous en bonne santé' : `${c.en_defaut} en défaut, ${c.manquants} arrêtés`));
@@ -408,6 +459,7 @@
         tuile('Distribution', s.distribution || '—', s.nom_code ? `nom de code ${s.nom_code}` : ''),
         tuile('Noyau', s.noyau || '—', s.architecture || ''),
         tuile('Processeur', s.processeur || '—', `${d.processeur.coeurs} cœurs`),
+        ...(s.docker ? [tuile('Docker', s.docker, `${d.conteneurs.actifs} conteneurs Supabase en service`)] : []),
         s.nouvelle_version
           ? tuile('Nouvelle version', s.nouvelle_version, 'disponible (do-release-upgrade)', { pourcent: 100, niveau: 'attention' })
           : tuile('Version', s.version || '—', 'pas de nouvelle version annoncée'),
@@ -504,6 +556,20 @@
       if (d.certificat_renouvellement != null) tuiles.push(tuile('Renouvellement HTTPS',
         d.certificat_renouvellement ? 'Actif' : 'Arrêté', d.certificat_renouvellement ? 'automatique (certbot), deux essais par jour' : 'minuteur certbot inactif',
         signal(d.certificat_renouvellement ? 'ok' : 'attention')));
+      const s = d.systeme || {};
+      const auto = s.mises_a_jour_auto;
+      if (auto) {
+        const age = auto.dernier ? Date.now() - Date.parse(auto.dernier) : null;
+        const retard = auto.minuteur === false || age == null || age > 48 * 3600e3;
+        tuiles.push(tuile('Mises à jour auto',
+          auto.minuteur === false ? 'Désactivées' : age == null ? 'Jamais lancées' : retard ? 'En retard' : 'Actives',
+          age != null ? `dernier passage ${ilya(age)}` : 'unattended-upgrades', signal(retard ? 'attention' : 'ok')));
+      }
+      const echecs = s.services_en_echec;
+      if (echecs) tuiles.push(tuile('Services système', echecs.length ? `${echecs.length} en échec` : 'Tous actifs',
+        echecs.length ? echecs.join(', ') : 'aucune unité systemd en échec', signal(echecs.length ? 'attention' : 'ok')));
+      if (s.heure_synchronisee != null) tuiles.push(tuile('Horloge', s.heure_synchronisee ? 'Synchronisée' : 'Non synchronisée',
+        s.heure_synchronisee ? 'heure tenue par NTP' : 'risque pour le HTTPS et les sauvegardes', signal(s.heure_synchronisee ? 'ok' : 'attention')));
       $('.fiabilite').replaceChildren(...tuiles);
       sansCaseVide($('.fiabilite'));
 
@@ -513,12 +579,26 @@
       const t = d.tailles && d.tailles.applications;
       $('.tailles').replaceChildren(...(t ? t.map(a => {
         const total = (a.base || 0) + (a.fichiers || 0);
-        const li = ligne('ok', a.nom, `base ${taille(a.base)} · fichiers ${taille(a.fichiers)} · sauvegarde ${taille(a.sauvegarde)}`);
-        li.querySelector('.pastille').textContent = '≡';
-        li.querySelector('.pastille').dataset.niveau = 'neutre';
+        // Sauvegarde deux fois plus petite que la précédente : données perdues ou export incomplet ?
+        const reduite = a.sauvegarde != null && a.sauvegarde_precedente > 1024 ** 2 && a.sauvegarde < a.sauvegarde_precedente / 2;
+        const li = ligne(reduite ? 'attention' : 'ok', a.nom, `base ${taille(a.base)} · fichiers ${taille(a.fichiers)} · sauvegarde ${taille(a.sauvegarde)}`
+          + (reduite ? ` (précédente ${taille(a.sauvegarde_precedente)})` : ''));
+        if (!reduite) {
+          li.querySelector('.pastille').textContent = '≡';
+          li.querySelector('.pastille').dataset.niveau = 'neutre';
+        }
         li.title = `Total en service : ${taille(total)}`;
         return li;
       }) : [el('li', 'vide-liste', 'Mesure en cours.')]));
+      const red = d.conteneurs.redemarrages;
+      $('.redemarrages').replaceChildren(...(red == null ? [el('li', 'vide-liste', 'Docker ne répond pas.')]
+        : red.length ? red.map(r => {
+          const recent = r.dernier && Date.now() / 1000 - r.dernier < 3600;
+          const li = ligne(recent ? 'attention' : 'ok', r.nom.replace(/^supabase_/, ''),
+            pluriel(r.total, 'redémarrage') + (r.dernier ? ` · dernier ${ilya(Date.now() - r.dernier * 1000)}` : ''));
+          if (!recent) { li.querySelector('.pastille').textContent = '↻'; li.querySelector('.pastille').dataset.niveau = 'neutre'; }
+          return li;
+        }) : [el('li', 'vide-liste', 'Aucun redémarrage automatique.')]));
     }
 
     function afficherFrequentation(d) {
@@ -539,69 +619,125 @@
       }));
     }
 
-    // Courbes processeur et mémoire sur 24 h (une ligne coupée là où des relevés manquent)
-    function afficherGraphe(d) {
-      const fin = Date.parse(d.genere) / 1000, debut = fin - 86400;
-      const points = (d.historique || []).filter(p => p.t >= debut);
+    // ---- Historique : 24 h (un point toutes les 5 minutes) ou 7 jours (un point par heure) ----
+    let periode = '24h';
+    try { if (localStorage.getItem('etat-periode') === '7j') periode = '7j'; } catch (e) { /* stockage indisponible */ }
+    const pctOuTiret = v => v == null ? '—' : pct(v);
+    const degres = v => v == null ? '—' : nombre(v) + ' °C';
+    const volume = o => o < 1024 ** 3 ? nombre(o / 1024 ** 2) + ' Mo' : go(o);
+    // Haut d'échelle « rond » au-dessus de la valeur : 1, 2 ou 5 × 10^n
+    function echelleRonde(v) {
+      if (!(v > 0)) return 1;
+      const p = 10 ** Math.floor(Math.log10(v));
+      return [1, 2, 5, 10].map(m => m * p).find(m => m >= v);
+    }
+
+    // Une courbe par série ; ligne coupée là où des relevés manquent ; échelle fixe (max) ou automatique
+    function tracer(fig, points, series, { debut, duree, pas, graduations, etiquette, max, format, incidents }) {
+      const legende = fig.querySelector('.legende'), trace = fig.querySelector('.trace'), axe = fig.querySelector('.axe-x');
       const dernier = points[points.length - 1];
-      const legende = $('.legende');
-      legende.replaceChildren();
-      [['cpu', 'Processeur'], ['mem', 'Mémoire']].forEach(([cle, nom]) => {
-        const s = el('span', 'serie ' + cle);
-        s.append(el('i'), el('span', null, nom + (dernier ? ' ' + pct(dernier[cle]) : '')));
-        legende.append(s);
-      });
-      const trace = $('.trace'), resume = $('.resume');
-      if (points.length < 2) {
-        trace.replaceChildren(el('p', 'vide', 'L\'historique se constitue : un relevé toutes les 5 minutes.'));
+      legende.replaceChildren(...series.map(s => {
+        const e = el('span', 'serie ' + s.cle);
+        e.append(el('i'), el('span', null, s.nom + (dernier && dernier[s.cle] != null ? ' ' + format(dernier[s.cle]) : '')));
+        return e;
+      }));
+      axe.replaceChildren(...Array.from({ length: graduations + 1 }, (_, i) =>
+        el('span', null, i === graduations ? 'maintenant' : etiquette(duree * (graduations - i) / graduations))));
+      const utiles = points.filter(p => series.some(s => p[s.cle] != null));
+      if (utiles.length < 2) {
+        trace.onpointermove = trace.onpointerleave = null;
+        trace.replaceChildren(el('p', 'vide', pas === PAS ? 'L\'historique se constitue : un relevé toutes les 5 minutes.'
+                                                         : 'L\'historique se constitue : un point par heure.'));
         trace.setAttribute('aria-label', 'Historique en cours de constitution');
-        resume.replaceChildren();
         return;
       }
-      const X = t => (t - debut) / 86400 * 1000, Y = v => 4 + (1 - v / 100) * 112;
-      const chemin = cle => points.map((p, i) =>
-        (i && p.t - points[i - 1].t <= 2 * PAS + 60 ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p[cle]).toFixed(1)).join('');
-      const pannes = points.filter(p => !p.ok).map(p =>
-        `<rect x="${(X(p.t) - 1.5).toFixed(1)}" y="112" width="3" height="8" class="panne"/>`).join('');
+      const haut = max || echelleRonde(1.1 * Math.max(...utiles.flatMap(p => series.map(s => p[s.cle] || 0))));
+      const X = t => (t - debut) / duree * 1000, Y = v => 4 + (1 - v / haut) * 112;
+      const chemin = cle => {
+        let d = '', precedent = null;
+        for (const p of points) {
+          if (p[cle] == null) { precedent = null; continue; }
+          d += (precedent && p.t - precedent.t <= 2 * pas + 60 ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p[cle]).toFixed(1);
+          precedent = p;
+        }
+        return d;
+      };
+      const pannes = incidents ? points.filter(p => !p.ok).map(p =>
+        `<rect x="${(X(p.t) - 1.5).toFixed(1)}" y="112" width="3" height="8" class="panne"/>`).join('') : '';
       trace.innerHTML =
         `<svg viewBox="0 0 1000 120" preserveAspectRatio="none" aria-hidden="true">
-          <line x1="0" x2="1000" y1="${Y(100)}" y2="${Y(100)}" class="grille"/>
-          <line x1="0" x2="1000" y1="${Y(50)}" y2="${Y(50)}" class="grille"/>
+          <line x1="0" x2="1000" y1="${Y(haut)}" y2="${Y(haut)}" class="grille"/>
+          <line x1="0" x2="1000" y1="${Y(haut / 2)}" y2="${Y(haut / 2)}" class="grille"/>
           <line x1="0" x2="1000" y1="${Y(0)}" y2="${Y(0)}" class="base"/>
           ${pannes}
-          <path d="${chemin('mem')}" class="ligne mem"/>
-          <path d="${chemin('cpu')}" class="ligne cpu"/>
+          ${series.slice().reverse().map(s => `<path d="${chemin(s.cle)}" class="ligne ${s.cle}"/>`).join('')}
         </svg>
-        <span class="graduation" style="top:${Y(100) / 1.2}%">100 %</span>
-        <span class="graduation" style="top:${Y(50) / 1.2}%">50 %</span>
-        <div class="curseur" hidden><span class="point cpu"></span><span class="point mem"></span></div>
+        <span class="graduation" style="top:${Y(haut) / 1.2}%">${format(haut)}</span>
+        <span class="graduation" style="top:${Y(haut / 2) / 1.2}%">${format(haut / 2)}</span>
+        <div class="curseur" hidden>${series.map(s => `<span class="point ${s.cle}"></span>`).join('')}</div>
         <div class="bulle" hidden></div>`;
-      const moy = cle => points.reduce((s, p) => s + p[cle], 0) / points.length;
-      const max = cle => Math.max(...points.map(p => p[cle]));
-      const dispo = 100 * points.filter(p => p.ok).length / points.length;
-      trace.setAttribute('aria-label', `Sur 24 heures : processeur ${pct(moy('cpu'))} en moyenne, mémoire ${pct(moy('mem'))} en moyenne, disponibilité ${pct(dispo)}.`);
-      const stat = (nom, valeur) => { const s = el('span', null, nom + ' '); s.append(el('b', null, valeur)); return s; };
-      resume.replaceChildren(
-        stat('Processeur moyen', pct(moy('cpu'))), stat('pointe', pct(max('cpu'))),
-        stat('Mémoire moyenne', pct(moy('mem'))), stat('pointe', pct(max('mem'))),
-        stat('Disponibilité', pct(dispo)));
+      const moyenne = cle => { const v = utiles.map(p => p[cle]).filter(v => v != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+      trace.setAttribute('aria-label', series.map(s => `${s.nom} : ${format(moyenne(s.cle))} en moyenne`).join(', ') + '.');
 
       const curseur = trace.querySelector('.curseur'), bulle = trace.querySelector('.bulle');
-      const [pc, pm] = curseur.querySelectorAll('.point');
+      const marques = curseur.querySelectorAll('.point');
       trace.onpointermove = e => {
         const r = trace.getBoundingClientRect();
-        const t = debut + (e.clientX - r.left) / r.width * 86400;
-        const p = points.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
+        const t = debut + (e.clientX - r.left) / r.width * duree;
+        const p = utiles.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
         const x = X(p.t) / 10;
         curseur.hidden = bulle.hidden = false;
         curseur.style.left = x + '%';
-        pc.style.top = Y(p.cpu) / 1.2 + '%';
-        pm.style.top = Y(p.mem) / 1.2 + '%';
-        bulle.innerHTML = `<b>${heure(new Date(p.t * 1000))}</b><span class="cpu">Processeur ${pct(p.cpu)}</span><span class="mem">Mémoire ${pct(p.mem)}</span>${p.ok ? '' : '<span class="incident">Incident</span>'}`;
+        series.forEach((s, i) => {
+          marques[i].hidden = p[s.cle] == null;
+          if (p[s.cle] != null) marques[i].style.top = Y(p[s.cle]) / 1.2 + '%';
+        });
+        const date = new Date(p.t * 1000);
+        bulle.replaceChildren(el('b', null, pas === PAS ? heure(date) : `${jour(date)}, ${heure(date)}`),
+          ...series.map(s => el('span', 'valeur-serie ' + s.cle, `${s.nom} ${format(p[s.cle])}`)));
+        if (incidents && !p.ok) bulle.append(el('span', 'incident', 'Incident'));
         bulle.style.left = Math.min(Math.max(x, 12), 88) + '%';
       };
       trace.onpointerleave = () => { curseur.hidden = bulle.hidden = true; };
     }
+
+    function afficherGraphe(d) {
+      const sept = periode === '7j';
+      const duree = sept ? 7 * 86400 : 86400, pas = sept ? 3600 : PAS;
+      const debut = Date.parse(d.genere) / 1000 - duree;
+      const points = ((sept ? d.historique_7j : d.historique) || []).filter(p => p.t >= debut);
+      const options = { debut, duree, pas, graduations: sept ? 7 : 4,
+                        etiquette: s => sept ? `−${Math.round(s / 86400)} j` : `−${Math.round(s / 3600)} h` };
+      const graphe = nom => document.querySelector(`[data-graphe="${nom}"]`);
+      tracer(graphe('charge'), points, [{ cle: 'cpu', nom: 'Processeur' }, { cle: 'mem', nom: 'Mémoire' }, { cle: 'disque', nom: 'Disque' }],
+             { ...options, max: 100, format: pctOuTiret, incidents: true });
+      // Température : seulement si le matériel la donne
+      graphe('temp').hidden = d.processeur.temperature == null && !points.some(p => p.temp != null);
+      tracer(graphe('temp'), points, [{ cle: 'temp', nom: 'Processeur' }], { ...options, max: 100, format: degres });
+      tracer(graphe('reseau'), points, [{ cle: 'rx', nom: 'Reçu' }, { cle: 'tx', nom: 'Envoyé' }], { ...options, format: debit });
+
+      const valeurs = cle => points.map(p => p[cle]).filter(v => v != null);
+      const moyenne = cle => { const v = valeurs(cle); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+      const pointes = valeurs(sept ? 'cpu_max' : 'cpu');
+      // Volume échangé : débit moyen de chaque point × durée qu'il couvre
+      const total = cle => valeurs(cle).reduce((a, b) => a + b, 0) * pas;
+      const stat = (nom, valeur) => { const s = el('span', null, nom + ' '); s.append(el('b', null, valeur)); return s; };
+      const resume = [stat('Processeur moyen', pctOuTiret(moyenne('cpu'))), stat('pointe', pointes.length ? pct(Math.max(...pointes)) : '—'),
+                      stat('Mémoire moyenne', pctOuTiret(moyenne('mem')))];
+      if (!sept && points.length) resume.push(stat('Disponibilité', pct(100 * points.filter(p => p.ok).length / points.length)));
+      if (valeurs('rx').length) resume.push(stat('Reçu', volume(total('rx'))), stat('envoyé', volume(total('tx'))));
+      $('.resume').replaceChildren(...(points.length ? resume : []));
+    }
+
+    document.querySelectorAll('.periodes button').forEach(bouton => {
+      bouton.setAttribute('aria-pressed', bouton.dataset.periode === periode);
+      bouton.addEventListener('click', () => {
+        periode = bouton.dataset.periode;
+        try { localStorage.setItem('etat-periode', periode); } catch (e) { /* stockage indisponible */ }
+        document.querySelectorAll('.periodes button').forEach(b => b.setAttribute('aria-pressed', b === bouton));
+        if (donnees) afficherGraphe(donnees);
+      });
+    });
 
     function afficherBilan() {
       if (!donnees) return;

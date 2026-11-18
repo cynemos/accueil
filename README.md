@@ -23,8 +23,9 @@ Le bas de la page d'accueil renvoie vers la page d'état
 ([cyneprod.org/accueil/etat.html](https://cyneprod.org/accueil/etat.html)) : processeur, charge,
 mémoire et mémoire d'échange, disque, NAS de sauvegarde, température, durée de fonctionnement,
 certificat HTTPS, réponse de chaque application, sauvegardes de la nuit, courbes processeur /
-mémoire des dernières 24 heures, et le système : distribution, noyau, processeur, nouvelle version
-annoncée, paquets à mettre à jour (dont sécurité) et redémarrage requis.
+mémoire / disque, température et débit réseau sur 24 heures ou 7 jours, et le système :
+distribution, noyau, processeur, version de Docker, nouvelle version annoncée, paquets à mettre à
+jour (dont sécurité) et redémarrage requis.
 
 `scripts/etat_serveur.py` (sans sudo) écrit ces mesures dans `accueil/etat.json`, que la page lit
 chaque minute. La liste des mises à jour vient de `apt list --upgradable` (cache d'apt, relu toutes
@@ -73,6 +74,17 @@ Les données privées (historique horaire de disponibilité, état des alertes) 
   planifiée > Script défini par l'utilisateur, utilisateur `root`, toutes les 5 minutes,
   commande `sh /volume1/sauvegardes-serveur/controle/controle_externe.sh`.
 - **Renouvellement du certificat** : le minuteur `certbot.timer` doit être actif.
+- **Mises à jour automatiques** : dernier passage d'`unattended-upgrades` (horodatage
+  `/var/lib/apt/periodic/unattended-upgrades-stamp`) ; alerte si le minuteur `apt-daily-upgrade.timer`
+  est arrêté ou s'il n'a pas tourné depuis 2 jours.
+- **Services système** : unités systemd en échec (`systemctl --failed`) et synchronisation de
+  l'horloge par NTP (`timedatectl`).
+- **Conteneurs** : redémarrages automatiques de chaque conteneur Supabase (compteur de Docker) ;
+  alerte pendant l'heure qui suit un redémarrage.
+- **Tendance de remplissage** du disque et du NAS : un point par jour gardé 30 jours, pente par
+  moindres carrés ; alerte si l'un doit être plein dans moins de 60 jours.
+- **Sauvegarde anormalement petite** : alerte si la dernière sauvegarde d'une application fait moins
+  de la moitié de la précédente.
 - **Fréquentation** des dernières 24 heures par application (visiteurs distincts, pages vues,
   robots, erreurs serveur), tirée d'un journal nginx qui note le nom du site. Installation une
   seule fois : `sudo bash ~/apps/accueil/scripts/installer_journal_nginx.sh`. Ni les contrôles du
